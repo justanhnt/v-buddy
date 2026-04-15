@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Planner map markers */
+.planner-marker {
+  --c: #2563eb;
+  position: relative;
+  display: block;
+  width: 26px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+  transform: translateY(2px);
+  transition: transform 120ms ease;
+}
+.planner-marker:hover { transform: translateY(0); }
+.planner-marker::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--c);
+  transform: translateX(-50%);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), inset 0 0 0 2px #fff;
+}
+.planner-marker::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid var(--c);
+  transform: translateX(-50%);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+.planner-marker--eat { --c: #f59e0b; }
+.planner-marker--fuel { --c: #0ea5e9; }
+.planner-marker--charge { --c: #10b981; }
+.planner-marker--parking { --c: #6366f1; }
+.planner-marker--insurance { --c: #ec4899; }
+
+/* MapLibre attribution in dark mode */
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
+}
