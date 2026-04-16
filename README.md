@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VETC Buddy
 
-## Getting Started
+AI-powered driving companion layered on top of [VETC](https://vetc.com.vn) — Vietnam's non-stop toll-road payment platform. Built for the **Qwen-VL hackathon**.
 
-First, run the development server:
+VETC Buddy adds a conversational trip-planning experience on top of VETC's existing wallet, toll history, and vehicle registration capabilities. Think of it as a Vietnamese "Tesla × Grok" for the road.
+
+## Features
+
+- **Voice-first interface** — press the mic and speak naturally in Vietnamese; Web Speech API handles recognition.
+- **Smart intent parsing** — understands requests for EV charging stations, fuel, food, parking, insurance, route planning, and trip planning.
+- **Route comparison** — ranks routes by preference (fastest, cheapest, fewest tolls, scenic, coastal, highway) with toll cost and duration breakdowns.
+- **Interactive map** — MapLibre GL map centered on Ho Chi Minh City with place markers, route lines, and geolocation.
+- **Quick chips** — one-tap shortcuts for common queries (charging, food, fuel, tolls, parking, insurance).
+- **Mobile-friendly** — bottom-sheet panel on mobile, side panel on desktop, dark mode support.
+
+## Tech stack
+
+- **Next.js 16** (App Router, Turbopack)
+- **React 19**, TypeScript (strict)
+- **Tailwind CSS v4**
+- **MapLibre GL JS** (OpenFreeMap vector tiles, OSM raster fallback)
+- **Qwen-VL via DashScope** (planned — AI provider for multimodal LLM calls)
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Install dependencies
+pnpm install
+
+# Start dev server (Turbopack)
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) — you'll be redirected to the trip planner.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm dev        # next dev (Turbopack) — http://localhost:3000
+pnpm build      # next build
+pnpm start      # next start (production)
+pnpm lint       # eslint (flat config)
+```
 
-## Learn More
+## Project structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/app/
+  layout.tsx          # Root layout (Geist font, global styles)
+  page.tsx            # Redirects to /planner
+  globals.css         # Tailwind v4 CSS-first config
+  planner/
+    page.tsx          # Trip planner route (server component w/ metadata)
+    Planner.tsx       # Main client component — chat, voice, quick chips
+    PlannerMap.tsx     # MapLibre GL map with markers and route lines
+    useVoice.ts       # Web Speech API hook (Vietnamese)
+    intent.ts         # Regex-based intent parser for Vietnamese input
+    types.ts          # Shared types (Route, Place, LngLat, etc.)
+    mock-data.ts      # HCMC mock data (routes, restaurants, fuel, EV, parking, insurance)
+    icons.tsx         # SVG icon components
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Private — hackathon project.
