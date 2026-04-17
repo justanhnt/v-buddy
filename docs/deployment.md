@@ -1,6 +1,6 @@
 # Deployment Guide
 
-VETC Buddy is a single Next.js application — no separate backend. API routes and SSR run in the same deployment. The app works in **mock mode** (no env vars needed) or **AI mode** (requires DashScope API key).
+VETC Buddy is a single Next.js application — no separate backend. API routes and SSR run in the same deployment. The AI chat requires a DashScope API key; map tiles and geocoding use free public APIs.
 
 ## Deployment Overview
 
@@ -173,9 +173,11 @@ docker run -p 3000:3000 --env-file .env vetc-buddy
 - [ ] App loads at deployed URL
 - [ ] `/planner` renders chat panel + map
 - [ ] Voice input works (requires HTTPS)
-- [ ] Quick chips trigger place/route results
+- [ ] Send a chat message — AI responds with tool results (route, costs, etc.)
 - [ ] Map tiles load (OpenFreeMap — no API key needed)
+- [ ] Route polylines render on the map
+- [ ] Place markers appear after a search
 - [ ] Dark mode works
 - [ ] Mobile bottom-sheet panel toggles correctly
-- [ ] _(After AI integration)_ `POST /api/chat` returns LLM responses
-- [ ] _(After AI integration)_ `DASHSCOPE_API_KEY` is set and not leaked to client (check page source)
+- [ ] `DASHSCOPE_API_KEY` is set and not leaked to client (check page source)
+- [ ] Image upload triggers vision analysis
