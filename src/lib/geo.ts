@@ -211,13 +211,13 @@ function haversineKm(
 // --- Overpass POI search ---
 
 const CATEGORY_TO_OSM: Record<string, string> = {
-  eat: 'node["amenity"~"restaurant|fast_food"]',
-  cafe: 'node["amenity"="cafe"]',
-  fuel: 'node["amenity"="fuel"]',
-  charge: 'node["amenity"="charging_station"]',
-  parking: 'node["amenity"="parking"]',
-  hotel: 'node["tourism"~"hotel|motel|guest_house"]',
-  rest_stop: 'node["highway"~"rest_area|services"]',
+  eat: 'nwr["amenity"~"restaurant|fast_food"]',
+  cafe: 'nwr["amenity"="cafe"]',
+  fuel: 'nwr["amenity"="fuel"]',
+  charge: 'nwr["amenity"="charging_station"]',
+  parking: 'nwr["amenity"="parking"]',
+  hotel: 'nwr["tourism"~"hotel|motel|guest_house"]',
+  rest_stop: 'nwr["highway"~"rest_area|services"]',
 };
 
 const CATEGORY_LABEL_VI: Record<string, string> = {
@@ -229,6 +229,87 @@ const CATEGORY_LABEL_VI: Record<string, string> = {
   hotel: "Khách sạn",
   rest_stop: "Trạm dừng nghỉ",
 };
+
+/** Build the best available address from OSM tags. */
+export function buildAddress(tags: Record<string, string>): string {
+  if (tags["addr:full"]) return tags["addr:full"];
+
+  const parts: string[] = [];
+  if (tags["addr:housenumber"]) parts.push(tags["addr:housenumber"]);
+  if (tags["addr:street"]) parts.push(tags["addr:street"]);
+  const district = tags["addr:district"] ?? tags["addr:suburb"] ?? tags["addr:subdistrict"];
+  if (district) parts.push(district);
+  const city = tags["addr:city"] ?? tags["addr:province"];
+  if (city) parts.push(city);
+
+  if (parts.length > 0) return parts.join(", ");
+
+  // Fallback: "addr:place" is sometimes used in rural areas
+  if (tags["addr:place"]) return tags["addr:place"];
+  return "";
+}
+
+/** Extract coordinates from an Overpass element (node has lat/lon, way/relation has center). */
+function extractCoords(el: Record<string, unknown>): { lat: number; lng: number } | null {
+  if (typeof el.lat === "number" && typeof el.lon === "number") {
+    return { lat: el.lat, lng: el.lon };
+  }
+  const center = el.center as { lat?: number; lon?: number } | undefined;
+  if (center && typeof center.lat === "number" && typeof center.lon === "number") {
+    return { lat: center.lat, lng: center.lon };
+  }
+  return null;
+}
+
+/**
+ * Get a normalized chain/brand key for deduplication.
+ * Chains like "Highland Coffee - Q1" and "Highland Coffee - Nguyễn Huệ" share the same key.
+ */
+function extractChainKey(name: string, tags: Record<string, string>): string {
+  // OSM brand tag is the most reliable chain identifier
+  if (tags.brand) return tags.brand.toLowerCase().trim();
+
+  // Strip branch suffixes: " - Nguyễn Huệ", " — Q.1", " (CN3)", " Chi nhánh 2"
+  const base = name
+    .replace(/\s*[-–—]\s*.+$/, "")
+    .replace(/\s*\(.*\)\s*$/, "")
+    .replace(/\s*chi\s*nhánh\s*\d*/i, "")
+    .replace(/\s*CN\s*\d+/i, "")
+    .replace(/\s+\d+\s*$/, "")
+    .trim();
+
+  return (base || name).toLowerCase();
+}
+
+/**
+ * Deduplicate places by chain/brand name.
+ * Keeps the entry with the best address for each chain.
+ */
+export function deduplicatePlaces<T extends { name: string; tags: Record<string, string> }>(
+  places: T[],
+): T[] {
+  const groups = new Map<string, T[]>();
+
+  for (const place of places) {
+    const key = extractChainKey(place.name, place.tags);
+    const group = groups.get(key);
+    if (group) group.push(place);
+    else groups.set(key, [place]);
+  }
+
+  const result: T[] = [];
+  for (const group of groups.values()) {
+    // Pick the entry with the most complete address
+    const best = group.reduce((a, b) => {
+      const aLen = buildAddress(a.tags).length;
+      const bLen = buildAddress(b.tags).length;
+      return bLen > aLen ? b : a;
+    });
+    result.push(best);
+  }
+
+  return result;
+}
 
 function resolvePOIName(tags: Record<string, string>, category: string): string {
   // Prefer Vietnamese name, then any name
@@ -266,7 +347,7 @@ export async function searchPOI(
     const query = `
       [out:json][timeout:10];
       ${osmFilter}(around:${radiusM},${center.lat},${center.lng});
-      out body 20;
+      out body center 20;
     `;
 
     const res = await fetch("https://overpass-api.de/api/interpreter", {
@@ -280,15 +361,22 @@ export async function searchPOI(
     });
     const data = await res.json();
 
-    return (data.elements ?? [])
-      .filter((el: Record<string, unknown>) => el.lat && el.lon && el.tags)
-      .map((el: Record<string, unknown>) => ({
-        id: String(el.id),
-        name: resolvePOIName(el.tags as Record<string, string>, category),
-        lat: el.lat as number,
-        lng: el.lon as number,
-        tags: el.tags as Record<string, string>,
-      }));
+    const raw = (data.elements ?? [])
+      .map((el: Record<string, unknown>) => {
+        const coords = extractCoords(el);
+        if (!coords || !el.tags) return null;
+        const tags = el.tags as Record<string, string>;
+        return {
+          id: String(el.id),
+          name: resolvePOIName(tags, category),
+          lat: coords.lat,
+          lng: coords.lng,
+          tags,
+        };
+      })
+      .filter(Boolean) as POIResult[];
+
+    return deduplicatePlaces(raw);
   } catch {
     return [];
   }
@@ -408,7 +496,7 @@ export async function findRestStopsAlongRoute(
       const parts = batch.map(
         (p) => `${filter}(around:${searchRadiusM},${p.lat},${p.lng});`,
       );
-      const q = `[out:json][timeout:15];(${parts.join("")});out body ${batch.length * 5};`;
+      const q = `[out:json][timeout:15];(${parts.join("")});out body center ${batch.length * 5};`;
 
       promises.push(
         fetch(endpoint, {
@@ -438,13 +526,13 @@ export async function findRestStopsAlongRoute(
 
   const seenIds = new Set<string>();
   for (const el of elements) {
-    if (!el.lat || !el.lon || !el.tags) continue;
+    const coords = extractCoords(el);
+    if (!coords || !el.tags) continue;
     const id = String(el.id);
     if (seenIds.has(id)) continue;
     seenIds.add(id);
 
-    const lat = el.lat as number;
-    const lng = el.lon as number;
+    const { lat, lng } = coords;
     const tags = el.tags as Record<string, string>;
 
     // Nearest sample point
@@ -469,14 +557,14 @@ export async function findRestStopsAlongRoute(
     });
   }
 
-  // 4. Build result — keep top 3 places per stop, drop empty stops
+  // 4. Deduplicate chains per stop, keep top 3, drop empty stops
   return samplePoints
     .map((sp) => ({
       km_marker: sp.km,
       area_name: sp.name,
       lat: sp.lat,
       lng: sp.lng,
-      places: (grouped.get(sp.km) ?? []).slice(0, 3),
+      places: deduplicatePlaces(grouped.get(sp.km) ?? []).slice(0, 3),
     }))
     .filter((stop) => stop.places.length > 0);
 }
@@ -488,9 +576,9 @@ export async function findRestStopsAlongRoute(
  */
 function routeSearchFilter(category: string): string {
   if (category === "rest_stop") {
-    return 'node["amenity"~"restaurant|fast_food|fuel|cafe"]';
+    return 'nwr["amenity"~"restaurant|fast_food|fuel|cafe"]';
   }
-  return CATEGORY_TO_OSM[category] ?? 'node["amenity"~"restaurant|fast_food|fuel"]';
+  return CATEGORY_TO_OSM[category] ?? 'nwr["amenity"~"restaurant|fast_food|fuel"]';
 }
 
 /** Detect the place category from OSM tags. */

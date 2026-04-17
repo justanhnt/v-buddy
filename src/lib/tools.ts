@@ -1,6 +1,6 @@
 import { tool, generateText } from "ai";
 import { z } from "zod";
-import { geocode, route, searchPOI, findRestStopsAlongRoute, buildOsrmCoords, simplifyPath } from "./geo";
+import { geocode, route, searchPOI, findRestStopsAlongRoute, buildOsrmCoords, simplifyPath, buildAddress, deduplicatePlaces } from "./geo";
 import { TOLL_ROUTES, FUEL_PRICES, FUEL_PRICES_UPDATED, DEFAULT_TOLL_RATE_PER_KM, CITY_ALIASES } from "./toll-data";
 import { getWeather } from "./weather";
 import { checkWallet } from "./wallet-mock";
@@ -57,9 +57,7 @@ export const tools = {
         places: results.slice(0, 8).map((p) => ({
           id: p.id,
           name: p.name,
-          address: p.tags["addr:street"]
-            ? `${p.tags["addr:housenumber"] ?? ""} ${p.tags["addr:street"]}`.trim()
-            : p.tags["addr:full"] ?? "",
+          address: buildAddress(p.tags),
           coord: [p.lng, p.lat] as [number, number],
           category,
           meta: buildMeta(category, p.tags),
@@ -231,9 +229,7 @@ export const tools = {
         places: results.slice(0, 5).map((p) => ({
           id: p.id,
           name: p.name,
-          address: p.tags["addr:street"]
-            ? `${p.tags["addr:housenumber"] ?? ""} ${p.tags["addr:street"]}`.trim()
-            : p.tags["addr:full"] ?? "",
+          address: buildAddress(p.tags),
           coord: [p.lng, p.lat] as [number, number],
           category: service_type,
           meta: buildMeta(service_type, p.tags),
@@ -682,9 +678,7 @@ export const tools = {
           places: s.places.map((p) => ({
             id: p.id,
             name: p.name,
-            address: p.tags["addr:street"]
-              ? `${p.tags["addr:housenumber"] ?? ""} ${p.tags["addr:street"]}`.trim()
-              : p.tags["addr:full"] ?? "",
+            address: buildAddress(p.tags),
             coord: [p.lng, p.lat] as [number, number],
             category: p.category,
             meta: buildMeta(p.category, p.tags),

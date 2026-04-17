@@ -190,21 +190,28 @@ export function ToolResult({
                         type="button"
                         onClick={() => onPickPlace(p.coord)}
                         className={cn(
-                          "flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors",
+                          "flex items-start gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors",
                           "hover:bg-accent",
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         )}
                       >
                         <PlaceIcon
-                          className="h-3.5 w-3.5 shrink-0"
+                          className="mt-0.5 h-3.5 w-3.5 shrink-0"
                           style={{ color: `var(--cat-${cat})` }}
                           aria-hidden
                         />
-                        <span className="truncate font-medium">
-                          {p.name}
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <span className="truncate font-medium block">
+                            {p.name}
+                          </span>
+                          {p.address && (
+                            <span className="text-[10px] text-muted-foreground line-clamp-1 block">
+                              {p.address}
+                            </span>
+                          )}
+                        </div>
                         {p.meta && (
-                          <span className="ml-auto shrink-0 text-muted-foreground">
+                          <span className="ml-auto shrink-0 text-muted-foreground mt-0.5">
                             {p.meta}
                           </span>
                         )}
