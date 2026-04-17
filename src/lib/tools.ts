@@ -609,6 +609,99 @@ export const tools = {
       };
     },
   }),
+
+  // --- B9: Web Search ---
+
+  web_search: tool({
+    description:
+      "Tìm kiếm thông tin trên web. Dùng khi các tool khác không đủ trả lời, ví dụ: tin tức giao thông, giá vé, luật mới, sự kiện, thông tin du lịch, hoặc bất kỳ câu hỏi nào ngoài khả năng của các tool hiện có.",
+    inputSchema: z.object({
+      query: z.string().describe("Từ khóa tìm kiếm, nên thêm 'Việt Nam' nếu liên quan đến VN"),
+      lang: z.enum(["vi", "en"]).optional().default("vi").describe("Ngôn ngữ kết quả"),
+    }),
+    execute: async ({ query, lang }) => {
+      try {
+        // DuckDuckGo instant answer API (free, no key)
+        const url = new URL("https://api.duckduckgo.com/");
+        url.searchParams.set("q", query);
+        url.searchParams.set("format", "json");
+        url.searchParams.set("no_html", "1");
+        url.searchParams.set("skip_disambig", "1");
+        url.searchParams.set("kl", lang === "vi" ? "vn-vi" : "us-en");
+
+        const res = await fetch(url, {
+          headers: { "User-Agent": "VETCBuddy/1.0 (vetc-buddy hackathon)" },
+          signal: AbortSignal.timeout(8_000),
+        });
+        const data = await res.json();
+
+        const results: { title: string; snippet: string; url: string }[] = [];
+
+        // Abstract (Wikipedia-style summary)
+        if (data.AbstractText) {
+          results.push({
+            title: data.Heading ?? query,
+            snippet: data.AbstractText,
+            url: data.AbstractURL ?? "",
+          });
+        }
+
+        // Answer (direct factual answer)
+        if (data.Answer) {
+          results.push({
+            title: "Trả lời nhanh",
+            snippet: String(data.Answer),
+            url: "",
+          });
+        }
+
+        // Related topics
+        if (Array.isArray(data.RelatedTopics)) {
+          for (const topic of data.RelatedTopics.slice(0, 5)) {
+            if (topic.Text && topic.FirstURL) {
+              results.push({
+                title: topic.Text.split(" - ")[0] ?? topic.Text,
+                snippet: topic.Text,
+                url: topic.FirstURL,
+              });
+            }
+            // Handle subtopics
+            if (Array.isArray(topic.Topics)) {
+              for (const sub of topic.Topics.slice(0, 2)) {
+                if (sub.Text && sub.FirstURL) {
+                  results.push({
+                    title: sub.Text.split(" - ")[0] ?? sub.Text,
+                    snippet: sub.Text,
+                    url: sub.FirstURL,
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        if (results.length === 0) {
+          return {
+            query,
+            results: [],
+            message: `Không tìm thấy kết quả cho "${query}". Thử dùng từ khóa khác.`,
+          };
+        }
+
+        return {
+          query,
+          results: results.slice(0, 6),
+        };
+      } catch {
+        return {
+          query,
+          results: [],
+          error: true,
+          message: "Không thể tìm kiếm lúc này. Vui lòng thử lại.",
+        };
+      }
+    },
+  }),
 };
 
 // --- Helpers ---

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl, {
   type StyleSpecification,
   Map as MLMap,
@@ -27,48 +27,199 @@ const ROUTE_LAYER_CASING = "planner-route-casing";
 const USER_SRC = "planner-user";
 const USER_LAYER = "planner-user-point";
 const USER_LAYER_HALO = "planner-user-halo";
+const VN_ISLANDS_SRC = "planner-vn-islands";
+const VN_ISLANDS_ARCHIPELAGO_LAYER = "planner-vn-islands-archipelago";
+const VN_ISLANDS_ISLAND_LAYER = "planner-vn-islands-island";
 
-const LIGHT_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: [
-        "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
+// Bounding boxes covering the Hoàng Sa (Paracel) and Trường Sa (Spratly)
+// archipelagos. Any place feature from the vector tiles that falls inside
+// these areas is suppressed; we re-add correct Vietnamese labels below.
+//
+// Bounds are intentionally offshore so no mainland labels are affected:
+//   Hoàng Sa: 110.8–112.9°E × 15.5–17.3°N  — west of Lý Sơn (109.1°E)
+//             and south of Hainan (≈18°N).
+//   Trường Sa: 110.5–116.0°E × 6.5–12.0°N — west of Balabac/Banggi
+//             (≈117°E, Philippines/Malaysia), north of Luconia Shoals
+//             (≈5°N, Malaysia claim), and east of Phú Quý (108.9°E).
+const DISPUTED_AREAS: GeoJSON.MultiPolygon = {
+  type: "MultiPolygon",
+  coordinates: [
+    [
+      [
+        [110.8, 15.5],
+        [112.9, 15.5],
+        [112.9, 17.3],
+        [110.8, 17.3],
+        [110.8, 15.5],
       ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors",
-      maxzoom: 19,
-    },
-  },
-  layers: [
-    { id: "bg", type: "background", paint: { "background-color": "#e5e7eb" } },
-    { id: "osm", type: "raster", source: "osm" },
+    ],
+    [
+      [
+        [110.5, 6.5],
+        [116.0, 6.5],
+        [116.0, 12.0],
+        [110.5, 12.0],
+        [110.5, 6.5],
+      ],
+    ],
   ],
 };
 
-const DARK_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    carto: {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-      ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap, © CARTO",
-      maxzoom: 19,
+type VnIslandProps = { name: string; kind: "archipelago" | "island" };
+
+const VN_ISLANDS_GEOJSON: GeoJSON.FeatureCollection<
+  GeoJSON.Point,
+  VnIslandProps
+> = {
+  type: "FeatureCollection",
+  features: [
+    // Archipelago headings
+    {
+      type: "Feature",
+      properties: {
+        name: "Quần đảo Hoàng Sa (Việt Nam)",
+        kind: "archipelago",
+      },
+      geometry: { type: "Point", coordinates: [111.9, 16.5] },
     },
-  },
-  layers: [
-    { id: "bg", type: "background", paint: { "background-color": "#0d1117" } },
-    { id: "carto", type: "raster", source: "carto" },
+    {
+      type: "Feature",
+      properties: {
+        name: "Quần đảo Trường Sa (Việt Nam)",
+        kind: "archipelago",
+      },
+      geometry: { type: "Point", coordinates: [114.0, 9.5] },
+    },
+    // Hoàng Sa — major islands
+    {
+      type: "Feature",
+      properties: { name: "Đảo Phú Lâm", kind: "island" },
+      geometry: { type: "Point", coordinates: [112.333, 16.833] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo Hoàng Sa", kind: "island" },
+      geometry: { type: "Point", coordinates: [111.617, 16.533] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo Tri Tôn", kind: "island" },
+      geometry: { type: "Point", coordinates: [111.2, 15.783] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo Linh Côn", kind: "island" },
+      geometry: { type: "Point", coordinates: [112.733, 16.667] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo Cây", kind: "island" },
+      geometry: { type: "Point", coordinates: [112.267, 16.9] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo Quang Hòa", kind: "island" },
+      geometry: { type: "Point", coordinates: [111.7, 16.45] },
+    },
+    // Trường Sa — major islands
+    {
+      type: "Feature",
+      properties: { name: "Đảo Trường Sa", kind: "island" },
+      geometry: { type: "Point", coordinates: [111.917, 8.65] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo Song Tử Tây", kind: "island" },
+      geometry: { type: "Point", coordinates: [114.333, 11.433] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo Nam Yết", kind: "island" },
+      geometry: { type: "Point", coordinates: [114.367, 10.183] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo Sơn Ca", kind: "island" },
+      geometry: { type: "Point", coordinates: [114.467, 10.383] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo Sinh Tồn", kind: "island" },
+      geometry: { type: "Point", coordinates: [114.333, 9.883] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo An Bang", kind: "island" },
+      geometry: { type: "Point", coordinates: [112.917, 7.883] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo Phan Vinh", kind: "island" },
+      geometry: { type: "Point", coordinates: [113.7, 8.967] },
+    },
+    {
+      type: "Feature",
+      properties: { name: "Đảo Thuyền Chài", kind: "island" },
+      geometry: { type: "Point", coordinates: [113.3, 8.183] },
+    },
   ],
 };
+
+const LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark";
+
+// Force Vietnamese labels on every symbol layer. Falls back to Latin
+// transliteration, then the raw `name`.
+const VI_TEXT_FIELD = [
+  "coalesce",
+  ["get", "name:vi"],
+  ["get", "name:latin"],
+  ["get", "name"],
+];
+
+async function loadLocalizedStyle(url: string): Promise<StyleSpecification> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Style fetch failed: ${res.status}`);
+  const style = (await res.json()) as StyleSpecification;
+  // Suppress any place feature (city, island, islet, locality, …) that
+  // falls inside the Hoàng Sa or Trường Sa bounding boxes. This removes
+  // the PRC-imposed "Sansha / Tam Sa" label AND every small-island name
+  // that comes through OSM in Chinese/English, without us having to
+  // enumerate them. We re-add the Vietnamese labels from our own source.
+  const notInDisputed = ["!", ["within", DISPUTED_AREAS]];
+  // OSM tags the PRC nine-dash line as admin_level=2, disputed=1,
+  // claimed_by=CN. The stock style's `boundary_disputed` layer renders
+  // any disputed line — including that one. Hide features claimed by CN
+  // so the dashed U-shape claim is not drawn over the East Sea.
+  const notClaimedByCN = [
+    "!=",
+    ["coalesce", ["get", "claimed_by"], ""],
+    "CN",
+  ];
+  for (const layer of style.layers ?? []) {
+    if (
+      layer.type === "symbol" &&
+      layer.layout &&
+      "text-field" in layer.layout
+    ) {
+      (layer.layout as Record<string, unknown>)["text-field"] = VI_TEXT_FIELD;
+    }
+    const sourceLayer = (layer as { "source-layer"?: string })["source-layer"];
+    if (sourceLayer === "place") {
+      const withFilter = layer as { filter?: unknown };
+      withFilter.filter = withFilter.filter
+        ? ["all", withFilter.filter, notInDisputed]
+        : notInDisputed;
+    }
+    if (sourceLayer === "boundary") {
+      const withFilter = layer as { filter?: unknown };
+      withFilter.filter = withFilter.filter
+        ? ["all", withFilter.filter, notClaimedByCN]
+        : notClaimedByCN;
+    }
+  }
+  return style;
+}
 
 function prefersReducedMotion() {
   if (typeof window === "undefined" || !window.matchMedia) return false;
@@ -113,6 +264,63 @@ function addOverlays(map: MLMap, isDark: boolean) {
       "line-color",
       isDark ? "#60a5fa" : "#2563eb",
     );
+  }
+
+  const islandTextColor = isDark ? "#e5e7eb" : "#1f2937";
+  const islandHaloColor = isDark ? "#0d1117" : "#ffffff";
+
+  if (!map.getSource(VN_ISLANDS_SRC)) {
+    map.addSource(VN_ISLANDS_SRC, {
+      type: "geojson",
+      data: VN_ISLANDS_GEOJSON,
+    });
+    map.addLayer({
+      id: VN_ISLANDS_ARCHIPELAGO_LAYER,
+      type: "symbol",
+      source: VN_ISLANDS_SRC,
+      filter: ["==", ["get", "kind"], "archipelago"],
+      minzoom: 3,
+      layout: {
+        "text-field": ["get", "name"],
+        "text-font": ["Noto Sans Italic"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 3, 11, 8, 14],
+        "text-max-width": 8,
+        "text-letter-spacing": 0.05,
+      },
+      paint: {
+        "text-color": islandTextColor,
+        "text-halo-color": islandHaloColor,
+        "text-halo-width": 1.4,
+      },
+    });
+    map.addLayer({
+      id: VN_ISLANDS_ISLAND_LAYER,
+      type: "symbol",
+      source: VN_ISLANDS_SRC,
+      filter: ["==", ["get", "kind"], "island"],
+      minzoom: 7,
+      layout: {
+        "text-field": ["get", "name"],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 7, 10, 12, 13],
+        "text-max-width": 8,
+        "text-anchor": "top",
+        "text-offset": [0, 0.6],
+      },
+      paint: {
+        "text-color": islandTextColor,
+        "text-halo-color": islandHaloColor,
+        "text-halo-width": 1.2,
+      },
+    });
+  } else {
+    for (const id of [
+      VN_ISLANDS_ARCHIPELAGO_LAYER,
+      VN_ISLANDS_ISLAND_LAYER,
+    ]) {
+      map.setPaintProperty(id, "text-color", islandTextColor);
+      map.setPaintProperty(id, "text-halo-color", islandHaloColor);
+    }
   }
 
   if (!map.getSource(USER_SRC)) {
@@ -176,16 +384,18 @@ export default function PlannerMap({
 
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const style = useMemo(() => (isDark ? DARK_STYLE : LIGHT_STYLE), [isDark]);
+  const [initialStyle, setInitialStyle] = useState<StyleSpecification | null>(
+    null,
+  );
 
-  // Initialize map once.
+  // Initialize map once — waits for the first localized style to load.
   useEffect(() => {
-    if (!container.current || mapRef.current) return;
+    if (!container.current || mapRef.current || !initialStyle) return;
     const markers = markersRef.current;
 
     const map = new maplibregl.Map({
       container: container.current,
-      style,
+      style: initialStyle,
       center: VN_CENTER,
       zoom: 12,
       attributionControl: { compact: true },
@@ -250,8 +460,7 @@ export default function PlannerMap({
       readyRef.current = false;
       markers.clear();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialStyle]);
 
   // Keep a ref to isDark so onStyleReady closure sees the latest.
   const isDarkRef = useRef(isDark);
@@ -259,14 +468,29 @@ export default function PlannerMap({
     isDarkRef.current = isDark;
   }, [isDark]);
 
-  // Swap style on theme change.
+  // Fetch the localized style for the current theme, then either seed the
+  // init effect (first load) or swap the live map's style (theme toggle).
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    readyRef.current = false;
+    let cancelled = false;
     setStatus("loading");
-    map.setStyle(style);
-  }, [style]);
+    loadLocalizedStyle(isDark ? DARK_STYLE_URL : LIGHT_STYLE_URL)
+      .then((next) => {
+        if (cancelled) return;
+        const map = mapRef.current;
+        if (map) {
+          readyRef.current = false;
+          map.setStyle(next);
+        } else {
+          setInitialStyle(next);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDark]);
 
   // Sync markers for places.
   useEffect(() => {

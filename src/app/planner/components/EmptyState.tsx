@@ -5,9 +5,11 @@ import { Sparkles } from "lucide-react";
 import { Chip } from "@/components/ui/chip";
 
 const SUGGESTIONS = [
-  "Đi Đà Lạt tránh trạm",
+  "Đi Đà Lạt hết bao nhiêu?",
+  "So sánh đường đi Vũng Tàu",
   "Tìm quán ăn gần đây",
-  "So sánh tuyến nhanh và tuyến rẻ",
+  "Thời tiết Nha Trang",
+  "Số dư ví VETC",
 ];
 
 interface EmptyStateProps {
@@ -25,10 +27,10 @@ export function EmptyState({ onPick }: EmptyStateProps) {
           <Sparkles className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-medium">Chào bạn! Mình là trợ lý đi đường.</p>
+          <p className="font-medium">Chào bạn! Mình là VETC Buddy.</p>
           <p className="mt-1 text-muted-foreground">
-            Nhấn giữ micro và nói bạn cần gì — tìm tuyến, quán ăn, trạm sạc,
-            bảo hiểm… tất cả trong một câu.
+            Hỏi mình bất kỳ điều gì về chuyến đi — chi phí, đường đi, quán ăn,
+            thời tiết, ví VETC… Mình tính hết trong một lần!
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {SUGGESTIONS.map((s) => (

@@ -113,6 +113,7 @@ const TOOL_STEP_LABELS: Record<string, string> = {
   check_wallet: "Kiểm tra ví VETC",
   get_weather: "Xem thời tiết",
   analyze_image: "Phân tích ảnh",
+  web_search: "Tìm kiếm web",
 };
 
 function StreamingIndicator({ messages }: { messages: UIMessage[] }) {

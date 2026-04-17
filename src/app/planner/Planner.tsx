@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { ChevronDown, Sparkles } from "lucide-react";
+import { ChevronDown, RotateCcw, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -25,7 +25,7 @@ const INITIAL_MESSAGE: UIMessage = {
   parts: [
     {
       type: "text",
-      text: "Chào bạn! Nhấn giữ micro và nói bạn cần gì — mình tìm tuyến đường, quán ăn, trạm sạc, bảo hiểm… tất cả trong một câu.",
+      text: "Chào bạn! Mình giúp bạn lên kế hoạch chuyến đi — tính chi phí, tìm đường, tìm quán ăn, xem thời tiết… Thử hỏi mình nhé!",
     },
   ],
 };
@@ -48,15 +48,23 @@ export default function Planner() {
       }),
   );
 
-  const { messages, sendMessage, status, stop } = useChat({
+  const { messages, sendMessage, setMessages, status, stop } = useChat({
     id: "planner",
     messages: [INITIAL_MESSAGE],
     transport,
   });
 
+  const resetChat = useCallback(() => {
+    stop();
+    setMessages([INITIAL_MESSAGE]);
+    setSelectedRouteIdx(0);
+    setFocusCoord(null);
+  }, [stop, setMessages]);
+
   const [sheetOpen, setSheetOpen] = useState(true);
   const [selectedRouteIdx, setSelectedRouteIdx] = useState(0);
   const [focusCoord, setFocusCoord] = useState<LngLat | null>(null);
+  const [pickedPlace, setPickedPlace] = useState<Place | null>(null);
 
   const isLoading = status === "streaming" || status === "submitted";
 
@@ -64,6 +72,7 @@ export default function Planner() {
     (text: string) => {
       const t = text.trim();
       if (!t || isLoading) return;
+      setPickedPlace(null);
       sendMessage({ text: t });
     },
     [sendMessage, isLoading],
@@ -220,9 +229,31 @@ export default function Planner() {
   const handlePickMarker = useCallback(
     (id: string) => {
       const hit = mapPlaces.find((p) => p.id === id);
-      if (hit) setFocusCoord(hit.coord);
+      if (hit) {
+        setFocusCoord(hit.coord);
+        setPickedPlace(hit);
+      }
     },
     [mapPlaces],
+  );
+
+  const handlePickPlace = useCallback(
+    (coord: LngLat) => {
+      setFocusCoord(coord);
+      const hit = mapPlaces.find(
+        (p) => p.coord[0] === coord[0] && p.coord[1] === coord[1],
+      );
+      if (hit) setPickedPlace(hit);
+    },
+    [mapPlaces],
+  );
+
+  const sendAndClearPick = useCallback(
+    (text: string) => {
+      setPickedPlace(null);
+      send(text);
+    },
+    [send],
   );
 
   return (
@@ -277,7 +308,21 @@ export default function Planner() {
               Trợ lý đi đường
             </h1>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            {messages.length > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={resetChat}
+                className="h-8 w-8 text-muted-foreground"
+                aria-label="Cuộc trò chuyện mới"
+              >
+                <RotateCcw className="h-4 w-4" aria-hidden />
+              </Button>
+            )}
+            <ThemeToggle />
+          </div>
         </header>
 
         <MessageList
@@ -285,13 +330,17 @@ export default function Planner() {
           isLoading={isLoading}
           voiceTranscript={voice.transcript}
           voiceListening={voice.listening}
-          onPickPlace={(c) => setFocusCoord(c)}
+          onPickPlace={handlePickPlace}
           onSelectRoute={setSelectedRouteIdx}
           selectedRouteIdx={selectedRouteIdx}
           onSuggestion={send}
         />
 
-        <QuickChips disabled={isLoading} onSelect={send} />
+        <QuickChips
+          disabled={isLoading}
+          onSelect={sendAndClearPick}
+          pickedPlace={pickedPlace}
+        />
 
         <Composer
           voice={voice}

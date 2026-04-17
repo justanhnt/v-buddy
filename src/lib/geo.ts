@@ -196,6 +196,40 @@ const CATEGORY_TO_OSM: Record<string, string> = {
   rest_stop: 'node["highway"~"rest_area|services"]',
 };
 
+const CATEGORY_LABEL_VI: Record<string, string> = {
+  eat: "Quán ăn",
+  cafe: "Quán cà phê",
+  fuel: "Trạm xăng",
+  charge: "Trạm sạc",
+  parking: "Bãi đỗ xe",
+  hotel: "Khách sạn",
+  rest_stop: "Trạm dừng nghỉ",
+};
+
+function resolvePOIName(tags: Record<string, string>, category: string): string {
+  // Prefer Vietnamese name, then any name
+  const name = tags["name:vi"] ?? tags.name;
+  if (name) return name;
+
+  // Try brand / operator (common for fuel, parking, charging stations)
+  const brand = tags.brand ?? tags.operator;
+
+  // Try to build a location-based name from address
+  const street = tags["addr:street"];
+  const housenumber = tags["addr:housenumber"];
+  const addr = street
+    ? housenumber ? `${housenumber} ${street}` : street
+    : null;
+
+  const label = CATEGORY_LABEL_VI[category] ?? category;
+
+  if (brand && addr) return `${brand} — ${addr}`;
+  if (brand) return brand;
+  if (addr) return `${label} — ${addr}`;
+
+  return label;
+}
+
 export async function searchPOI(
   category: string,
   center: { lat: number; lng: number },
@@ -226,10 +260,7 @@ export async function searchPOI(
       .filter((el: Record<string, unknown>) => el.lat && el.lon && el.tags)
       .map((el: Record<string, unknown>) => ({
         id: String(el.id),
-        name:
-          (el.tags as Record<string, string>)["name:vi"] ??
-          (el.tags as Record<string, string>).name ??
-          category,
+        name: resolvePOIName(el.tags as Record<string, string>, category),
         lat: el.lat as number,
         lng: el.lon as number,
         tags: el.tags as Record<string, string>,

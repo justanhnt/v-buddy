@@ -10,6 +10,8 @@ import {
   CloudRain,
   CloudSun,
   Clock,
+  ExternalLink,
+  Globe,
   Loader2,
   Receipt,
   Sun,
@@ -59,6 +61,7 @@ const TOOL_LOADING_LABELS: Record<string, { label: string; icon?: typeof Sun }> 
   check_wallet: { label: "Đang kiểm tra ví VETC…", icon: Wallet },
   get_weather: { label: "Đang xem thời tiết…", icon: Cloud },
   analyze_image: { label: "Đang phân tích ảnh…", icon: Camera },
+  web_search: { label: "Đang tìm kiếm trên web…", icon: Globe },
 };
 
 export function ToolResult({
@@ -416,6 +419,54 @@ export function ToolResult({
         <p className="mt-1.5 text-xs text-foreground/80">
           {output.analysis as string}
         </p>
+      </Card>
+    );
+  }
+
+  if (toolType === "web_search" && Array.isArray(output.results)) {
+    const results = output.results as {
+      title: string;
+      snippet: string;
+      url: string;
+    }[];
+    if (results.length === 0) {
+      return (
+        <Card className="p-3 text-xs text-muted-foreground">
+          {(output.message as string) ?? "Không tìm thấy kết quả."}
+        </Card>
+      );
+    }
+    return (
+      <Card className="p-3">
+        <div className="flex items-center gap-1.5">
+          <Globe className="h-4 w-4 text-info" aria-hidden />
+          <p className="text-xs font-medium uppercase tracking-wide text-info">
+            Kết quả tìm kiếm · {output.query as string}
+          </p>
+        </div>
+        <ul className="mt-2 space-y-2">
+          {results.slice(0, 4).map((r, i) => (
+            <li key={i} className="text-xs">
+              <p className="font-medium text-foreground/90 leading-snug">
+                {r.title}
+              </p>
+              <p className="mt-0.5 text-muted-foreground line-clamp-2 leading-relaxed">
+                {r.snippet}
+              </p>
+              {r.url && (
+                <a
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-0.5 inline-flex items-center gap-1 text-info hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3" aria-hidden />
+                  Xem thêm
+                </a>
+              )}
+            </li>
+          ))}
+        </ul>
       </Card>
     );
   }
