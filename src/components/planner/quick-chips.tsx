@@ -9,6 +9,7 @@ import {
   Navigation,
   ParkingSquare,
   Receipt,
+  Sparkles,
   Utensils,
   Wallet,
   Zap,
@@ -25,6 +26,8 @@ interface ChipDef {
 }
 
 const DEFAULT_CHIPS: ChipDef[] = [
+  { label: "Lên kế hoạch đi Đà Lạt", icon: Sparkles },
+  { label: "Lên kế hoạch đi Vũng Tàu cuối tuần", icon: Sparkles },
   { label: "Đi Đà Lạt hết bao nhiêu?", icon: Receipt },
   { label: "So sánh đường đi Vũng Tàu", icon: Map },
   { label: "Quán ăn dọc đường đi Đà Lạt", icon: Utensils },
