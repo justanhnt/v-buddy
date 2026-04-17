@@ -1,23 +1,121 @@
 @import "tailwindcss";
 @import "maplibre-gl/dist/maplibre-gl.css";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --border: oklch(0.9 0 0);
+  --input: oklch(0.93 0 0);
+  --ring: oklch(0.55 0.2 264);
+  --primary: oklch(0.55 0.2 264);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.2 0 0);
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.2 0 0);
+  --success: oklch(0.7 0.17 155);
+  --success-foreground: oklch(0.2 0.05 155);
+  --warning: oklch(0.8 0.17 75);
+  --warning-foreground: oklch(0.25 0.08 75);
+  --danger: oklch(0.62 0.23 27);
+  --danger-foreground: oklch(0.98 0 0);
+  --info: oklch(0.7 0.15 230);
+  --info-foreground: oklch(0.2 0.06 230);
+
+  --cat-eat: oklch(0.75 0.16 70);
+  --cat-fuel: oklch(0.7 0.15 230);
+  --cat-charge: oklch(0.72 0.17 155);
+  --cat-parking: oklch(0.6 0.18 280);
+  --cat-insurance: oklch(0.7 0.19 350);
+  --cat-cafe: oklch(0.65 0.13 50);
+  --cat-hotel: oklch(0.6 0.14 300);
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.19 0 0);
+  --card-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.24 0 0);
+  --muted-foreground: oklch(0.68 0 0);
+  --border: oklch(0.28 0 0);
+  --input: oklch(0.26 0 0);
+  --ring: oklch(0.65 0.2 264);
+  --primary: oklch(0.68 0.18 264);
+  --primary-foreground: oklch(0.15 0.05 264);
+  --secondary: oklch(0.24 0 0);
+  --secondary-foreground: oklch(0.98 0 0);
+  --accent: oklch(0.27 0 0);
+  --accent-foreground: oklch(0.98 0 0);
+  --success: oklch(0.74 0.18 155);
+  --success-foreground: oklch(0.15 0.05 155);
+  --warning: oklch(0.82 0.18 75);
+  --warning-foreground: oklch(0.2 0.07 75);
+  --danger: oklch(0.7 0.2 27);
+  --danger-foreground: oklch(0.15 0.05 27);
+  --info: oklch(0.75 0.15 230);
+  --info-foreground: oklch(0.16 0.05 230);
+
+  --cat-eat: oklch(0.8 0.17 70);
+  --cat-fuel: oklch(0.75 0.16 230);
+  --cat-charge: oklch(0.78 0.18 155);
+  --cat-parking: oklch(0.7 0.18 280);
+  --cat-insurance: oklch(0.78 0.18 350);
+  --cat-cafe: oklch(0.72 0.14 50);
+  --cat-hotel: oklch(0.7 0.15 300);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  --color-cat-eat: var(--cat-eat);
+  --color-cat-fuel: var(--cat-fuel);
+  --color-cat-charge: var(--cat-charge);
+  --color-cat-parking: var(--cat-parking);
+  --color-cat-insurance: var(--cat-insurance);
+  --color-cat-cafe: var(--cat-cafe);
+  --color-cat-hotel: var(--cat-hotel);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
@@ -28,19 +126,24 @@ body {
 
 /* Planner map markers */
 .planner-marker {
-  --c: #2563eb;
+  --c: var(--cat-fuel);
   position: relative;
   display: block;
-  width: 26px;
-  height: 32px;
+  width: 28px;
+  height: 34px;
   padding: 0;
   border: 0;
   cursor: pointer;
   background: transparent;
   transform: translateY(2px);
   transition: transform 120ms ease;
+  border-radius: 999px;
 }
 .planner-marker:hover { transform: translateY(0); }
+.planner-marker:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--background), 0 0 0 5px var(--ring);
+}
 .planner-marker::before {
   content: "";
   position: absolute;
@@ -51,7 +154,7 @@ body {
   border-radius: 50%;
   background: var(--c);
   transform: translateX(-50%);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), inset 0 0 0 2px #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), inset 0 0 0 2px var(--background);
 }
 .planner-marker::after {
   content: "";
@@ -66,11 +169,23 @@ body {
   transform: translateX(-50%);
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
 }
-.planner-marker--eat { --c: #f59e0b; }
-.planner-marker--fuel { --c: #0ea5e9; }
-.planner-marker--charge { --c: #10b981; }
-.planner-marker--parking { --c: #6366f1; }
-.planner-marker--insurance { --c: #ec4899; }
+.planner-marker--eat { --c: var(--cat-eat); }
+.planner-marker--fuel { --c: var(--cat-fuel); }
+.planner-marker--charge { --c: var(--cat-charge); }
+.planner-marker--parking { --c: var(--cat-parking); }
+.planner-marker--insurance { --c: var(--cat-insurance); }
+.planner-marker--cafe { --c: var(--cat-cafe); }
+.planner-marker--hotel { --c: var(--cat-hotel); }
+
+.planner-marker--selected {
+  transform: translateY(-2px) scale(1.1);
+}
+.planner-marker--selected::before {
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 2px var(--background),
+    0 0 0 3px var(--ring);
+}
 
 /* Markdown inside chat bubbles */
 .prose-chat > :first-child { margin-top: 0; }
@@ -78,7 +193,7 @@ body {
 .prose-chat p { margin: 0.35em 0; line-height: 1.55; }
 .prose-chat ul, .prose-chat ol { margin: 0.4em 0; padding-left: 1.4em; }
 .prose-chat li { margin: 0.15em 0; }
-.prose-chat li::marker { color: #a1a1aa; }
+.prose-chat li::marker { color: var(--muted-foreground); }
 .prose-chat strong { font-weight: 600; }
 .prose-chat h1, .prose-chat h2, .prose-chat h3 {
   font-weight: 600;
@@ -92,35 +207,90 @@ body {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-size: 0.85em;
   padding: 0.15em 0.35em;
-  border-radius: 4px;
-  background: rgba(0,0,0,0.06);
-}
-@media (prefers-color-scheme: dark) {
-  .prose-chat code { background: rgba(255,255,255,0.08); }
-  .prose-chat li::marker { color: #52525b; }
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--foreground) 8%, transparent);
 }
 .prose-chat hr {
   border: none;
-  border-top: 1px solid #e4e4e7;
+  border-top: 1px solid var(--border);
   margin: 0.6em 0;
 }
-@media (prefers-color-scheme: dark) {
-  .prose-chat hr { border-color: #3f3f46; }
+.prose-chat .table-wrap {
+  overflow-x: auto;
+  margin: 0.5em 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
-.prose-chat table { border-collapse: collapse; margin: 0.4em 0; width: 100%; }
+.prose-chat table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  font-size: 0.85em;
+  line-height: 1.4;
+}
 .prose-chat th, .prose-chat td {
-  border: 1px solid #e4e4e7;
-  padding: 0.3em 0.5em;
+  border: 1px solid var(--border);
+  padding: 0.35em 0.65em;
   text-align: left;
-  font-size: 0.9em;
+  white-space: nowrap;
 }
-.prose-chat th { font-weight: 600; background: rgba(0,0,0,0.03); }
-@media (prefers-color-scheme: dark) {
-  .prose-chat th, .prose-chat td { border-color: #3f3f46; }
-  .prose-chat th { background: rgba(255,255,255,0.04); }
+.prose-chat td:last-child,
+.prose-chat th:last-child {
+  white-space: normal;
+}
+.prose-chat th {
+  font-weight: 600;
+  background: color-mix(in oklch, var(--foreground) 5%, transparent);
+  position: sticky;
+  top: 0;
+}
+.prose-chat tr:nth-child(even) td {
+  background: color-mix(in oklch, var(--foreground) 2%, transparent);
 }
 
-/* MapLibre attribution in dark mode */
-.maplibregl-ctrl-attrib {
-  font-size: 10px;
+/* MapLibre attribution + dark mode */
+.maplibregl-ctrl-attrib { font-size: 10px; }
+.dark .maplibregl-ctrl-attrib {
+  background: color-mix(in oklch, var(--card) 80%, transparent);
+  color: var(--muted-foreground);
+}
+.dark .maplibregl-ctrl-attrib a { color: var(--foreground); }
+.dark .maplibregl-ctrl-group {
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.dark .maplibregl-ctrl-group button {
+  background-color: var(--card);
+}
+.dark .maplibregl-ctrl-group button + button {
+  border-top-color: var(--border);
+}
+.dark .maplibregl-ctrl-group button span {
+  filter: invert(1) hue-rotate(180deg) brightness(1.1);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .planner-marker,
+  .planner-marker--selected {
+    transition: none !important;
+    transform: none !important;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scroll-hint fade gradients */
+.scroll-hint-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 16px,
+    black calc(100% - 16px),
+    transparent 100%
+  );
 }

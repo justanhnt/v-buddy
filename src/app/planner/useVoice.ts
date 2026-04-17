@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 // Minimal typings for the Web Speech API — not in lib.dom.d.ts everywhere.
 type SRResultAlt = { transcript: string };
@@ -31,16 +37,52 @@ function getSRCtor(): SRCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+export type VoiceErrorCode =
+  | "not-allowed"
+  | "service-not-allowed"
+  | "no-speech"
+  | "audio-capture"
+  | "network"
+  | "aborted"
+  | "language-not-supported"
+  | "unsupported"
+  | "unknown";
+
+const VOICE_ERROR_MESSAGES: Record<VoiceErrorCode, string> = {
+  "not-allowed":
+    "Trình duyệt đã chặn micro. Bật quyền trong cài đặt rồi thử lại.",
+  "service-not-allowed":
+    "Dịch vụ nhận giọng nói bị chặn trên thiết bị này.",
+  "no-speech": "Không nghe thấy gì — hãy thử nói rõ hơn.",
+  "audio-capture": "Không kết nối được micro. Kiểm tra thiết bị âm thanh.",
+  network: "Mất kết nối mạng trong khi nhận giọng nói.",
+  aborted: "Đã hủy nhận giọng nói.",
+  "language-not-supported": "Trình duyệt chưa hỗ trợ tiếng Việt.",
+  unsupported: "Trình duyệt chưa hỗ trợ giọng nói.",
+  unknown: "Có lỗi khi nhận giọng nói. Vui lòng thử lại.",
+};
+
+const KNOWN_CODES = new Set<string>([
+  "not-allowed",
+  "service-not-allowed",
+  "no-speech",
+  "audio-capture",
+  "network",
+  "aborted",
+  "language-not-supported",
+]);
+
 export type VoiceState = {
   supported: boolean;
   listening: boolean;
   transcript: string;
   error: string | null;
+  errorCode: VoiceErrorCode | null;
   start: () => void;
   stop: () => void;
+  clearError: () => void;
 };
 
-// Subscribe-free external store: capability never changes in a session.
 const subscribeNoop = () => () => {};
 const getSupportSnapshot = () => getSRCtor() !== null;
 const getSupportServerSnapshot = () => false;
@@ -56,14 +98,35 @@ export function useVoice(
   );
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<VoiceErrorCode | null>(null);
   const recRef = useRef<SpeechRecognition | null>(null);
   const finalRef = useRef("");
+  const pendingTranscriptRef = useRef<string | null>(null);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushTranscript = useCallback(() => {
+    flushTimerRef.current = null;
+    if (pendingTranscriptRef.current != null) {
+      setTranscript(pendingTranscriptRef.current);
+      pendingTranscriptRef.current = null;
+    }
+  }, []);
+
+  const queueTranscript = useCallback(
+    (next: string) => {
+      pendingTranscriptRef.current = next;
+      if (flushTimerRef.current) return;
+      flushTimerRef.current = setTimeout(flushTranscript, 80);
+    },
+    [flushTranscript],
+  );
+
+  const clearError = useCallback(() => setErrorCode(null), []);
 
   const start = useCallback(() => {
     const Ctor = getSRCtor();
     if (!Ctor) {
-      setError("Trình duyệt chưa hỗ trợ giọng nói.");
+      setErrorCode("unsupported");
       return;
     }
     if (recRef.current) {
@@ -77,8 +140,13 @@ export function useVoice(
     rec.interimResults = true;
     rec.continuous = false;
     finalRef.current = "";
+    pendingTranscriptRef.current = null;
+    if (flushTimerRef.current) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
     setTranscript("");
-    setError(null);
+    setErrorCode(null);
 
     rec.onresult = (e) => {
       let interim = "";
@@ -90,12 +158,20 @@ export function useVoice(
           interim += r[0].transcript;
         }
       }
-      setTranscript((finalRef.current + " " + interim).trim());
+      queueTranscript((finalRef.current + " " + interim).trim());
     };
     rec.onerror = (e) => {
-      setError(e.error || "Không nhận được giọng nói.");
+      const raw = e.error || "unknown";
+      const code: VoiceErrorCode = KNOWN_CODES.has(raw)
+        ? (raw as VoiceErrorCode)
+        : "unknown";
+      setErrorCode(code);
     };
     rec.onend = () => {
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTranscript();
+      }
       setListening(false);
       const text = finalRef.current.trim();
       if (text) onFinal(text);
@@ -106,10 +182,10 @@ export function useVoice(
       rec.start();
       recRef.current = rec;
       setListening(true);
-    } catch (err) {
-      setError(String(err));
+    } catch {
+      setErrorCode("unknown");
     }
-  }, [lang, onFinal]);
+  }, [lang, onFinal, queueTranscript, flushTranscript]);
 
   const stop = useCallback(() => {
     const rec = recRef.current;
@@ -121,6 +197,7 @@ export function useVoice(
 
   useEffect(() => {
     return () => {
+      if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
       const rec = recRef.current;
       if (rec) {
         try {
@@ -130,5 +207,16 @@ export function useVoice(
     };
   }, []);
 
-  return { supported, listening, transcript, error, start, stop };
+  const error = errorCode ? VOICE_ERROR_MESSAGES[errorCode] : null;
+
+  return {
+    supported,
+    listening,
+    transcript,
+    error,
+    errorCode,
+    start,
+    stop,
+    clearError,
+  };
 }

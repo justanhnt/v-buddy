@@ -1,6 +1,25 @@
 const UA = "VETCBuddy/1.0 (vetc-buddy hackathon)";
 const TIMEOUT = 5_000;
 
+/**
+ * Downsample a coordinate path to at most `maxPoints` points.
+ * Always keeps first and last point. Uses uniform sampling for speed.
+ * This keeps tool results small enough for the LLM (~10KB vs ~568KB).
+ */
+export function simplifyPath(
+  path: [number, number][],
+  maxPoints = 200,
+): [number, number][] {
+  if (path.length <= maxPoints) return path;
+  const step = (path.length - 1) / (maxPoints - 1);
+  const result: [number, number][] = [];
+  for (let i = 0; i < maxPoints - 1; i++) {
+    result.push(path[Math.round(i * step)]);
+  }
+  result.push(path[path.length - 1]);
+  return result;
+}
+
 export type GeoResult = {
   lat: number;
   lng: number;

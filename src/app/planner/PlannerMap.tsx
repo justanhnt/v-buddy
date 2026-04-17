@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, {
   type StyleSpecification,
   Map as MLMap,
   Marker,
 } from "maplibre-gl";
+import { useTheme } from "next-themes";
+
+import { Skeleton } from "@/components/ui/skeleton";
+
+import { getCategoryLabel } from "./category-meta";
 import { VN_CENTER } from "./mock-data";
 import type { LngLat, Place, RouteResult } from "./types";
 
@@ -23,7 +28,7 @@ const USER_SRC = "planner-user";
 const USER_LAYER = "planner-user-point";
 const USER_LAYER_HALO = "planner-user-halo";
 
-const PRIMARY_STYLE: StyleSpecification = {
+const LIGHT_STYLE: StyleSpecification = {
   version: 8,
   sources: {
     osm: {
@@ -44,7 +49,33 @@ const PRIMARY_STYLE: StyleSpecification = {
   ],
 };
 
-function addOverlays(map: MLMap) {
+const DARK_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    carto: {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap, © CARTO",
+      maxzoom: 19,
+    },
+  },
+  layers: [
+    { id: "bg", type: "background", paint: { "background-color": "#0d1117" } },
+    { id: "carto", type: "raster", source: "carto" },
+  ],
+};
+
+function prefersReducedMotion() {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function addOverlays(map: MLMap, isDark: boolean) {
   if (!map.getSource(ROUTE_SRC)) {
     map.addSource(ROUTE_SRC, {
       type: "geojson",
@@ -55,16 +86,35 @@ function addOverlays(map: MLMap) {
       type: "line",
       source: ROUTE_SRC,
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": "#ffffff", "line-width": 8, "line-opacity": 0.9 },
+      paint: {
+        "line-color": isDark ? "#0d1117" : "#ffffff",
+        "line-width": 8,
+        "line-opacity": 0.9,
+      },
     });
     map.addLayer({
       id: ROUTE_LAYER,
       type: "line",
       source: ROUTE_SRC,
       layout: { "line-cap": "round", "line-join": "round" },
-      paint: { "line-color": "#2563eb", "line-width": 5 },
+      paint: {
+        "line-color": isDark ? "#60a5fa" : "#2563eb",
+        "line-width": 5,
+      },
     });
+  } else {
+    map.setPaintProperty(
+      ROUTE_LAYER_CASING,
+      "line-color",
+      isDark ? "#0d1117" : "#ffffff",
+    );
+    map.setPaintProperty(
+      ROUTE_LAYER,
+      "line-color",
+      isDark ? "#60a5fa" : "#2563eb",
+    );
   }
+
   if (!map.getSource(USER_SRC)) {
     map.addSource(USER_SRC, {
       type: "geojson",
@@ -76,7 +126,7 @@ function addOverlays(map: MLMap) {
       source: USER_SRC,
       paint: {
         "circle-radius": 18,
-        "circle-color": "#2563eb",
+        "circle-color": isDark ? "#60a5fa" : "#2563eb",
         "circle-opacity": 0.15,
       },
     });
@@ -86,12 +136,28 @@ function addOverlays(map: MLMap) {
       source: USER_SRC,
       paint: {
         "circle-radius": 7,
-        "circle-color": "#2563eb",
-        "circle-stroke-color": "#ffffff",
+        "circle-color": isDark ? "#60a5fa" : "#2563eb",
+        "circle-stroke-color": isDark ? "#0d1117" : "#ffffff",
         "circle-stroke-width": 2,
       },
     });
   }
+}
+
+function labelControl(map: MLMap) {
+  const root = map.getContainer();
+  const setLabel = (sel: string, label: string) => {
+    root
+      .querySelectorAll<HTMLButtonElement>(sel)
+      .forEach((el) => {
+        el.setAttribute("aria-label", label);
+        el.setAttribute("title", label);
+      });
+  };
+  setLabel(".maplibregl-ctrl-zoom-in", "Phóng to");
+  setLabel(".maplibregl-ctrl-zoom-out", "Thu nhỏ");
+  setLabel(".maplibregl-ctrl-compass", "Đặt lại hướng");
+  setLabel(".maplibregl-ctrl-geolocate", "Về vị trí của tôi");
 }
 
 export default function PlannerMap({
@@ -104,7 +170,13 @@ export default function PlannerMap({
   const mapRef = useRef<MLMap | null>(null);
   const markersRef = useRef<Map<string, Marker>>(new Map());
   const readyRef = useRef(false);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(
+    "loading",
+  );
+
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const style = useMemo(() => (isDark ? DARK_STYLE : LIGHT_STYLE), [isDark]);
 
   // Initialize map once.
   useEffect(() => {
@@ -113,7 +185,7 @@ export default function PlannerMap({
 
     const map = new maplibregl.Map({
       container: container.current,
-      style: PRIMARY_STYLE,
+      style,
       center: VN_CENTER,
       zoom: 12,
       attributionControl: { compact: true },
@@ -126,12 +198,13 @@ export default function PlannerMap({
     const geolocate = new maplibregl.GeolocateControl({
       positionOptions: { enableHighAccuracy: true },
       trackUserLocation: false,
-      showUserLocation: false, // we draw our own dot
+      showUserLocation: false,
     });
     map.addControl(geolocate, "top-right");
 
     const onStyleReady = () => {
-      addOverlays(map);
+      addOverlays(map, map === mapRef.current && isDarkRef.current);
+      labelControl(map);
       readyRef.current = true;
       setStatus("ready");
     };
@@ -142,7 +215,6 @@ export default function PlannerMap({
     });
     map.on("error", () => setStatus("error"));
 
-    // Ask for geolocation once style is ready.
     const askLocation = () => {
       if (!navigator.geolocation) return;
       navigator.geolocation.getCurrentPosition(
@@ -158,12 +230,13 @@ export default function PlannerMap({
               geometry: { type: "Point", coordinates: here },
             });
           }
-          map.easeTo({ center: here, zoom: 14, duration: 700 });
+          map.easeTo({
+            center: here,
+            zoom: 14,
+            duration: prefersReducedMotion() ? 0 : 700,
+          });
         },
-        (err) => {
-          // Silent — HCMC default center is already set.
-          console.debug("Geolocation denied or unavailable:", err.message);
-        },
+        () => {},
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
       );
     };
@@ -177,7 +250,23 @@ export default function PlannerMap({
       readyRef.current = false;
       markers.clear();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep a ref to isDark so onStyleReady closure sees the latest.
+  const isDarkRef = useRef(isDark);
+  useEffect(() => {
+    isDarkRef.current = isDark;
+  }, [isDark]);
+
+  // Swap style on theme change.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    readyRef.current = false;
+    setStatus("loading");
+    map.setStyle(style);
+  }, [style]);
 
   // Sync markers for places.
   useEffect(() => {
@@ -201,10 +290,14 @@ export default function PlannerMap({
       }
       const el = document.createElement("button");
       el.type = "button";
-      el.setAttribute("aria-label", place.name);
+      const label = `${getCategoryLabel(place.category)}: ${place.name}`;
+      el.setAttribute("aria-label", label);
+      el.setAttribute("title", label);
       el.className =
         "planner-marker " +
-        (place.category ? `planner-marker--${place.category}` : "planner-marker--eat");
+        (place.category
+          ? `planner-marker--${place.category}`
+          : "planner-marker--eat");
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         onPickPlace?.(place.id);
@@ -223,7 +316,9 @@ export default function PlannerMap({
     if (!map) return;
 
     const apply = () => {
-      const src = map.getSource(ROUTE_SRC) as maplibregl.GeoJSONSource | undefined;
+      const src = map.getSource(ROUTE_SRC) as
+        | maplibregl.GeoJSONSource
+        | undefined;
       if (!src) return;
       if (route) {
         src.setData({
@@ -235,7 +330,10 @@ export default function PlannerMap({
           (b, c) => b.extend(c),
           new maplibregl.LngLatBounds(route.path[0], route.path[0]),
         );
-        map.fitBounds(bounds, { padding: 80, duration: 600 });
+        map.fitBounds(bounds, {
+          padding: 80,
+          duration: prefersReducedMotion() ? 0 : 600,
+        });
       } else {
         src.setData({ type: "FeatureCollection", features: [] });
       }
@@ -245,26 +343,43 @@ export default function PlannerMap({
     else map.once("load", apply);
   }, [route]);
 
-  // Pan to focus coord (clicking a list item).
+  // Pan to focus coord.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focusCoord) return;
-    map.flyTo({ center: focusCoord, zoom: 15, duration: 700 });
+    map.flyTo({
+      center: focusCoord,
+      zoom: 15,
+      duration: prefersReducedMotion() ? 0 : 700,
+    });
   }, [focusCoord]);
 
   return (
     <>
-      <div ref={container} style={{ width: "100%", height: "100%" }} className="bg-zinc-200 dark:bg-zinc-800" />
+      <div
+        ref={container}
+        style={{ width: "100%", height: "100%" }}
+        className="bg-muted"
+        role="application"
+        aria-label="Bản đồ tuyến đường"
+      />
       {status === "loading" && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <div className="rounded-full bg-white/80 px-3 py-1.5 text-xs text-zinc-600 shadow ring-1 ring-black/5 backdrop-blur dark:bg-zinc-900/80 dark:text-zinc-300 dark:ring-white/10">
+        <div
+          className="pointer-events-none absolute inset-0 flex items-end justify-center p-4"
+          aria-hidden
+        >
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-border bg-card/90 px-3 py-1.5 text-xs text-card-foreground shadow-sm backdrop-blur">
+            <Skeleton className="h-2 w-2 rounded-full" />
             Đang tải bản đồ…
           </div>
         </div>
       )}
       {status === "error" && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <div className="rounded-full bg-rose-100 px-3 py-1.5 text-xs text-rose-600 shadow ring-1 ring-rose-200 backdrop-blur">
+        <div
+          role="alert"
+          className="pointer-events-none absolute inset-0 grid place-items-center"
+        >
+          <div className="rounded-full border border-danger/40 bg-[color-mix(in_oklch,var(--danger)_12%,var(--card))] px-3 py-1.5 text-xs text-[var(--danger)] shadow-sm backdrop-blur">
             Lỗi tải bản đồ — kiểm tra Console (F12)
           </div>
         </div>

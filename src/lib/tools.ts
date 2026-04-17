@@ -1,6 +1,6 @@
 import { tool, generateText } from "ai";
 import { z } from "zod";
-import { geocode, route, searchPOI, buildOsrmCoords } from "./geo";
+import { geocode, route, searchPOI, buildOsrmCoords, simplifyPath } from "./geo";
 import { TOLL_ROUTES, FUEL_PRICES, FUEL_PRICES_UPDATED, DEFAULT_TOLL_RATE_PER_KM, CITY_ALIASES } from "./toll-data";
 import { getWeather } from "./weather";
 import { checkWallet } from "./wallet-mock";
@@ -104,7 +104,7 @@ export const tools = {
         to: { name: toGeo.displayName, lat: toGeo.lat, lng: toGeo.lng },
         distanceKm: r.distanceKm,
         durationMin: r.durationMin,
-        path: r.path,
+        path: simplifyPath(r.path),
       };
     },
   }),
@@ -440,7 +440,7 @@ export const tools = {
           toll_vnd: tollVnd,
           fuel_vnd: fuelVnd,
           total_vnd: tollVnd + fuelVnd,
-          path: r.geometry.coordinates as [number, number][],
+          path: simplifyPath(r.geometry.coordinates as [number, number][]),
           tags,
         };
       });
@@ -587,7 +587,7 @@ export const tools = {
           duration_min: r.durationMin,
           toll_vnd: tollVnd,
           fuel_vnd: fuelVnd,
-          path: r.path,
+          path: simplifyPath(r.path),
         });
 
         totalDistance += r.distanceKm;
