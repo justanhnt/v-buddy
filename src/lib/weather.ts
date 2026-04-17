@@ -104,3 +104,83 @@ export async function getWeather(
     return null;
   }
 }
+
+// --- Hourly weather for a specific date + hour ---
+
+export type HourlyWeatherPoint = {
+  temp_c: number;
+  description: string;
+  icon: string;
+  rain_chance_percent: number;
+  wind_kph: number;
+  driving_advisory: string;
+};
+
+/**
+ * Fetch weather for a specific coordinate at a specific date and hour.
+ * Uses Open-Meteo hourly forecast (up to 16 days ahead).
+ */
+export async function getWeatherAtTime(
+  lat: number,
+  lng: number,
+  date: string, // YYYY-MM-DD
+  hour: number, // 0-23
+): Promise<HourlyWeatherPoint | null> {
+  try {
+    const url = new URL("https://api.open-meteo.com/v1/forecast");
+    url.searchParams.set("latitude", String(lat));
+    url.searchParams.set("longitude", String(lng));
+    url.searchParams.set(
+      "hourly",
+      "temperature_2m,precipitation_probability,weather_code,wind_speed_10m",
+    );
+    url.searchParams.set("start_date", date);
+    url.searchParams.set("end_date", date);
+    url.searchParams.set("timezone", "Asia/Ho_Chi_Minh");
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    const data = await res.json();
+
+    const idx = Math.min(Math.max(hour, 0), 23);
+    const code: number = data.hourly?.weather_code?.[idx] ?? 0;
+    const weather = WMO_CODES[code] ?? WMO_CODES[0]!;
+    const wind: number = data.hourly?.wind_speed_10m?.[idx] ?? 0;
+
+    return {
+      temp_c: Math.round(data.hourly?.temperature_2m?.[idx] ?? 0),
+      description: weather.desc,
+      icon: weather.icon,
+      rain_chance_percent: data.hourly?.precipitation_probability?.[idx] ?? 0,
+      wind_kph: Math.round(wind),
+      driving_advisory: drivingAdvisory(code, wind),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Advance a date string by minutes, returning the new date + hour. */
+export function advanceTime(
+  dateStr: string,
+  startHour: number,
+  addMinutes: number,
+): { date: string; hour: number; display: string } {
+  const totalMin = startHour * 60 + addMinutes;
+  const dayOffset = Math.floor(totalMin / 1440);
+  const remainingMin = totalMin % 1440;
+  const hour = Math.floor(remainingMin / 60);
+
+  const parts = dateStr.split("-").map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
+  d.setDate(d.getDate() + dayOffset);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const resultDate = `${y}-${m}-${dd}`;
+
+  const hh = String(hour).padStart(2, "0");
+  const mm = String(Math.round(remainingMin % 60)).padStart(2, "0");
+  const display = `${hh}:${mm} ${dd}/${m}`;
+
+  return { date: resultDate, hour, display };
+}

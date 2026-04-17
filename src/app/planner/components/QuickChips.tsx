@@ -30,7 +30,7 @@ const DEFAULT_CHIPS: ChipDef[] = [
   { label: "Quán ăn dọc đường đi Đà Lạt", icon: Utensils },
   { label: "Trạm sạc gần đây", icon: Zap },
   { label: "Số dư ví VETC", icon: Wallet },
-  { label: "Thời tiết Đà Nẵng", icon: Cloud },
+  { label: "Thời tiết dọc đường đi Đà Lạt ngày mai", icon: Cloud },
   { label: "Đổ xăng", icon: Fuel },
 ];
 

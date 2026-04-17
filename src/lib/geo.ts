@@ -415,7 +415,7 @@ const VN_CITIES = [
   { lat: 9.78, lng: 105.46, name: "Cà Mau" },
 ];
 
-function nearestCityName(lat: number, lng: number): string {
+export function nearestCityName(lat: number, lng: number): string {
   let minDist = Infinity;
   let name = "";
   for (const city of VN_CITIES) {
@@ -594,7 +594,7 @@ function detectPOICategory(tags: Record<string, string>): string {
 }
 
 /** Compute cumulative haversine distances along a path (km). */
-function computeCumulativeDistances(path: [number, number][]): number[] {
+export function computeCumulativeDistances(path: [number, number][]): number[] {
   const d = [0];
   for (let i = 1; i < path.length; i++) {
     const seg = haversineKm(

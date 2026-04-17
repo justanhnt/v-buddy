@@ -45,7 +45,7 @@ export function MessageBubble({
 
   // Deduplicate: for tools that can appear multiple times (search_places,
   // get_nearby), only show the LAST completed result to avoid duplicate cards.
-  const DEDUP_TOOLS = new Set(["search_places", "get_nearby", "search_along_route"]);
+  const DEDUP_TOOLS = new Set(["search_places", "get_nearby", "search_along_route", "weather_along_route"]);
   const lastToolIdx = new Map<string, number>();
   message.parts.forEach((part, idx) => {
     if (
