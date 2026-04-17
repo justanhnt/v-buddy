@@ -27,8 +27,8 @@ interface ChipDef {
 const DEFAULT_CHIPS: ChipDef[] = [
   { label: "Đi Đà Lạt hết bao nhiêu?", icon: Receipt },
   { label: "So sánh đường đi Vũng Tàu", icon: Map },
+  { label: "Quán ăn dọc đường đi Đà Lạt", icon: Utensils },
   { label: "Trạm sạc gần đây", icon: Zap },
-  { label: "Đói bụng rồi", icon: Utensils },
   { label: "Số dư ví VETC", icon: Wallet },
   { label: "Thời tiết Đà Nẵng", icon: Cloud },
   { label: "Đổ xăng", icon: Fuel },

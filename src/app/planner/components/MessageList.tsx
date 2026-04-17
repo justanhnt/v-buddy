@@ -114,6 +114,7 @@ const TOOL_STEP_LABELS: Record<string, string> = {
   get_weather: "Xem thời tiết",
   analyze_image: "Phân tích ảnh",
   web_search: "Tìm kiếm web",
+  search_along_route: "Tìm dọc đường",
 };
 
 function StreamingIndicator({ messages }: { messages: UIMessage[] }) {

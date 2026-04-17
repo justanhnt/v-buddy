@@ -1,6 +1,6 @@
 import { tool, generateText } from "ai";
 import { z } from "zod";
-import { geocode, route, searchPOI, buildOsrmCoords, simplifyPath } from "./geo";
+import { geocode, route, searchPOI, findRestStopsAlongRoute, buildOsrmCoords, simplifyPath } from "./geo";
 import { TOLL_ROUTES, FUEL_PRICES, FUEL_PRICES_UPDATED, DEFAULT_TOLL_RATE_PER_KM, CITY_ALIASES } from "./toll-data";
 import { getWeather } from "./weather";
 import { checkWallet } from "./wallet-mock";
@@ -606,6 +606,90 @@ export const tools = {
           fuel_vnd: totalFuel,
           total_cost_vnd: totalToll + totalFuel,
         },
+      };
+    },
+  }),
+
+  // --- Search along route (rest-stop planner) ---
+
+  search_along_route: tool({
+    description:
+      "Tìm điểm dừng chân dọc theo tuyến đường: quán ăn, trạm xăng, cafe, trạm dừng nghỉ. Tự động chia tuyến đường thành các điểm nghỉ hợp lý (~150km/điểm) và tìm dịch vụ gần mỗi điểm. Dùng khi người dùng muốn lên kế hoạch nghỉ ngơi, ăn uống, đổ xăng trên đường đi dài. Chọn rest_stop để tìm tổng hợp (ăn + xăng + cafe).",
+    inputSchema: z.object({
+      from: z.string().describe("Điểm xuất phát"),
+      to: z.string().describe("Điểm đến"),
+      category: z
+        .enum(["eat", "cafe", "fuel", "charge", "parking", "hotel", "rest_stop"])
+        .describe("Loại địa điểm. 'rest_stop' = tổng hợp (ăn uống + xăng + cafe)"),
+      radius_km: z
+        .number()
+        .optional()
+        .default(5)
+        .describe("Bán kính tìm kiếm từ điểm dừng (km), mặc định 5km"),
+    }),
+    execute: async ({ from, to, category, radius_km }) => {
+      const [fromGeo, toGeo] = await Promise.all([geocode(from), geocode(to)]);
+      if (!fromGeo || !toGeo) {
+        return {
+          error: true,
+          message: `Không tìm thấy ${!fromGeo ? from : to} trên bản đồ.`,
+          rest_stops: [],
+        };
+      }
+
+      const r = await route(
+        { lat: fromGeo.lat, lng: fromGeo.lng },
+        { lat: toGeo.lat, lng: toGeo.lng },
+      );
+      if (!r) {
+        return {
+          error: true,
+          message: "Không tìm được tuyến đường.",
+          rest_stops: [],
+        };
+      }
+
+      const stops = await findRestStopsAlongRoute(
+        r.path,
+        r.distanceKm,
+        category,
+        (radius_km ?? 5) * 1000,
+      );
+
+      const fromName = fromGeo.displayName.split(",").slice(0, 2).join(",").trim();
+      const toName = toGeo.displayName.split(",").slice(0, 2).join(",").trim();
+
+      if (stops.length === 0) {
+        return {
+          from: { name: fromName, lat: fromGeo.lat, lng: fromGeo.lng },
+          to: { name: toName, lat: toGeo.lat, lng: toGeo.lng },
+          route_distance_km: r.distanceKm,
+          route_duration_min: r.durationMin,
+          rest_stops: [],
+          message: `Không tìm thấy dịch vụ dọc đường ${from} → ${to}. Thử tăng bán kính.`,
+        };
+      }
+
+      return {
+        from: { name: fromName, lat: fromGeo.lat, lng: fromGeo.lng },
+        to: { name: toName, lat: toGeo.lat, lng: toGeo.lng },
+        route_distance_km: r.distanceKm,
+        route_duration_min: r.durationMin,
+        rest_stops: stops.map((s) => ({
+          km_marker: s.km_marker,
+          area_name: s.area_name,
+          coord: [s.lng, s.lat] as [number, number],
+          places: s.places.map((p) => ({
+            id: p.id,
+            name: p.name,
+            address: p.tags["addr:street"]
+              ? `${p.tags["addr:housenumber"] ?? ""} ${p.tags["addr:street"]}`.trim()
+              : p.tags["addr:full"] ?? "",
+            coord: [p.lng, p.lat] as [number, number],
+            category: p.category,
+            meta: buildMeta(p.category, p.tags),
+          })),
+        })),
       };
     },
   }),

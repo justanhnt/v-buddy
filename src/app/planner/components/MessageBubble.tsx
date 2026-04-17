@@ -45,7 +45,7 @@ export function MessageBubble({
 
   // Deduplicate: for tools that can appear multiple times (search_places,
   // get_nearby), only show the LAST completed result to avoid duplicate cards.
-  const DEDUP_TOOLS = new Set(["search_places", "get_nearby"]);
+  const DEDUP_TOOLS = new Set(["search_places", "get_nearby", "search_along_route"]);
   const lastToolIdx = new Map<string, number>();
   message.parts.forEach((part, idx) => {
     if (
@@ -62,14 +62,14 @@ export function MessageBubble({
   });
 
   return (
-    <li className="flex max-w-[92%] flex-col gap-2">
+    <li className="flex min-w-0 max-w-[92%] flex-col gap-2">
       {message.parts.map((part, idx) => {
         if (part.type === "text" && part.text) {
           return (
             <div
               key={idx}
               className={cn(
-                "prose-chat self-start overflow-hidden rounded-2xl rounded-bl-md bg-card px-3.5 py-2.5 text-sm text-card-foreground border border-border shadow-sm",
+                "prose-chat min-w-0 max-w-full self-start overflow-hidden rounded-2xl rounded-bl-md bg-card px-3.5 py-2.5 text-sm text-card-foreground border border-border shadow-sm",
               )}
             >
               <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{part.text}</Markdown>

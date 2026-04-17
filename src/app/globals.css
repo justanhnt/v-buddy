@@ -127,6 +127,12 @@ body {
 /* Planner map — native circle layers handle markers now */
 
 /* Markdown inside chat bubbles */
+.prose-chat {
+  /* Long URLs / unbroken tokens shouldn't push the bubble wide. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+}
 .prose-chat > :first-child { margin-top: 0; }
 .prose-chat > :last-child { margin-bottom: 0; }
 .prose-chat p { margin: 0.35em 0; line-height: 1.55; }
@@ -155,6 +161,8 @@ body {
   margin: 0.6em 0;
 }
 .prose-chat .table-wrap {
+  display: block;
+  max-width: 100%;
   overflow-x: auto;
   margin: 0.5em 0;
   -webkit-overflow-scrolling: touch;
@@ -223,13 +231,9 @@ body {
   }
 }
 
-/* Scroll-hint fade gradients */
+/* Horizontal scroller — no mask fade. The fade was clipping the border and
+   icon of the first/last card; rely on the browser's natural clipping at the
+   scroll container edge instead. */
 .scroll-hint-x {
-  mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    black 16px,
-    black calc(100% - 16px),
-    transparent 100%
-  );
+  /* intentionally empty — kept as a hook for future per-edge affordances */
 }

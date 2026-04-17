@@ -1,6 +1,12 @@
 const UA = "VETCBuddy/1.0 (vetc-buddy hackathon)";
 const TIMEOUT = 5_000;
 
+/** Two Overpass endpoints, alternated to avoid per-server rate limits. */
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+
 /**
  * Downsample a coordinate path to at most `maxPoints` points.
  * Always keeps first and last point. Uses uniform sampling for speed.
@@ -184,6 +190,24 @@ export async function route(
   }
 }
 
+// --- Haversine distance ---
+
+function haversineKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 // --- Overpass POI search ---
 
 const CATEGORY_TO_OSM: Record<string, string> = {
@@ -268,4 +292,230 @@ export async function searchPOI(
   } catch {
     return [];
   }
+}
+
+// --- Rest-stop search along a route ---
+
+/** Major Vietnamese cities for instant area-name resolution (no API call). */
+const VN_CITIES = [
+  { lat: 21.03, lng: 105.85, name: "Hà Nội" },
+  { lat: 20.86, lng: 106.68, name: "Hải Phòng" },
+  { lat: 20.43, lng: 106.17, name: "Ninh Bình" },
+  { lat: 19.80, lng: 105.78, name: "Thanh Hóa" },
+  { lat: 18.68, lng: 105.68, name: "Vinh" },
+  { lat: 17.48, lng: 106.60, name: "Đồng Hới" },
+  { lat: 16.46, lng: 107.60, name: "Huế" },
+  { lat: 16.05, lng: 108.20, name: "Đà Nẵng" },
+  { lat: 15.88, lng: 108.33, name: "Hội An" },
+  { lat: 15.12, lng: 108.80, name: "Quảng Ngãi" },
+  { lat: 14.36, lng: 108.00, name: "Pleiku" },
+  { lat: 13.77, lng: 109.22, name: "Quy Nhơn" },
+  { lat: 12.68, lng: 108.05, name: "Buôn Ma Thuột" },
+  { lat: 12.24, lng: 109.19, name: "Nha Trang" },
+  { lat: 11.94, lng: 108.44, name: "Đà Lạt" },
+  { lat: 11.58, lng: 108.99, name: "Phan Rang" },
+  { lat: 11.55, lng: 107.81, name: "Bảo Lộc" },
+  { lat: 10.93, lng: 108.10, name: "Phan Thiết" },
+  { lat: 10.98, lng: 106.65, name: "Long Thành" },
+  { lat: 10.95, lng: 106.84, name: "Biên Hòa" },
+  { lat: 11.33, lng: 106.63, name: "Bình Dương" },
+  { lat: 10.78, lng: 106.70, name: "TP.HCM" },
+  { lat: 10.37, lng: 107.08, name: "Vũng Tàu" },
+  { lat: 10.36, lng: 106.36, name: "Mỹ Tho" },
+  { lat: 10.04, lng: 105.78, name: "Cần Thơ" },
+  { lat: 9.60, lng: 105.97, name: "Sóc Trăng" },
+  { lat: 9.78, lng: 105.46, name: "Cà Mau" },
+];
+
+function nearestCityName(lat: number, lng: number): string {
+  let minDist = Infinity;
+  let name = "";
+  for (const city of VN_CITIES) {
+    const d = haversineKm(lat, lng, city.lat, city.lng);
+    if (d < minDist) {
+      minDist = d;
+      name = city.name;
+    }
+  }
+  return minDist > 30 ? `Gần ${name}` : name;
+}
+
+export type RestStopPlace = POIResult & { category: string };
+
+export type RestStop = {
+  km_marker: number;
+  area_name: string;
+  lat: number;
+  lng: number;
+  places: RestStopPlace[];
+};
+
+/**
+ * Find rest stops along a route by sampling points at regular intervals,
+ * then searching for amenities near each point using a single batched
+ * Overpass union query.
+ *
+ * For `rest_stop` category, broadens to restaurants + fuel + cafes since
+ * `highway=rest_area` has sparse coverage in Vietnam.
+ */
+export async function findRestStopsAlongRoute(
+  routePath: [number, number][], // [lng, lat][] from OSRM
+  routeDistanceKm: number,
+  category: string,
+  searchRadiusM: number = 5000,
+): Promise<RestStop[]> {
+  // 1. Sample rest points along the route (~every 150 km)
+  const markerPath = simplifyPath(routePath, 100);
+  const cumDist = computeCumulativeDistances(markerPath);
+
+  const numStops = Math.max(1, Math.min(10, Math.round(routeDistanceKm / 150)));
+  const interval = routeDistanceKm / (numStops + 1);
+
+  const samplePoints: { km: number; lat: number; lng: number; name: string }[] = [];
+  for (let i = 1; i <= numStops; i++) {
+    const targetKm = Math.round(interval * i);
+    let bestIdx = 0;
+    let bestDiff = Infinity;
+    for (let j = 0; j < cumDist.length; j++) {
+      const diff = Math.abs(cumDist[j] - targetKm);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIdx = j;
+      }
+    }
+    const lat = markerPath[bestIdx][1]; // [lng, lat] → lat
+    const lng = markerPath[bestIdx][0]; // [lng, lat] → lng
+    samplePoints.push({ km: targetKm, lat, lng, name: nearestCityName(lat, lng) });
+  }
+
+  // 2. Query Overpass in small batches (3 stops each), alternating between
+  //    two Overpass endpoints to avoid rate-limit errors on long routes.
+  const filter = routeSearchFilter(category);
+  const BATCH = 3;
+  const batches: typeof samplePoints[] = [];
+  for (let i = 0; i < samplePoints.length; i += BATCH) {
+    batches.push(samplePoints.slice(i, i + BATCH));
+  }
+
+  const elements: Record<string, unknown>[] = [];
+
+  // Run batches in parallel pairs (one per endpoint)
+  for (let r = 0; r < batches.length; r += 2) {
+    const promises: Promise<Record<string, unknown>[]>[] = [];
+    for (let j = 0; j < 2 && r + j < batches.length; j++) {
+      const batch = batches[r + j];
+      const endpoint = OVERPASS_ENDPOINTS[j];
+      const parts = batch.map(
+        (p) => `${filter}(around:${searchRadiusM},${p.lat},${p.lng});`,
+      );
+      const q = `[out:json][timeout:15];(${parts.join("")});out body ${batch.length * 5};`;
+
+      promises.push(
+        fetch(endpoint, {
+          method: "POST",
+          body: `data=${encodeURIComponent(q)}`,
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": UA,
+          },
+          signal: AbortSignal.timeout(20_000),
+        })
+          .then((res) => res.text())
+          .then((text) => {
+            if (text.startsWith("<") || !text.startsWith("{")) return [];
+            return (JSON.parse(text).elements as Record<string, unknown>[]) ?? [];
+          })
+          .catch(() => [] as Record<string, unknown>[]),
+      );
+    }
+    const results = await Promise.all(promises);
+    for (const els of results) elements.push(...els);
+  }
+
+  // 3. Parse elements and group by nearest sample point
+  const grouped = new Map<number, RestStopPlace[]>();
+  for (const sp of samplePoints) grouped.set(sp.km, []);
+
+  const seenIds = new Set<string>();
+  for (const el of elements) {
+    if (!el.lat || !el.lon || !el.tags) continue;
+    const id = String(el.id);
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+
+    const lat = el.lat as number;
+    const lng = el.lon as number;
+    const tags = el.tags as Record<string, string>;
+
+    // Nearest sample point
+    let nearestKm = samplePoints[0].km;
+    let minDist = Infinity;
+    for (const sp of samplePoints) {
+      const d = haversineKm(lat, lng, sp.lat, sp.lng);
+      if (d < minDist) {
+        minDist = d;
+        nearestKm = sp.km;
+      }
+    }
+
+    const cat = detectPOICategory(tags);
+    grouped.get(nearestKm)?.push({
+      id,
+      name: resolvePOIName(tags, cat),
+      lat,
+      lng,
+      tags,
+      category: cat,
+    });
+  }
+
+  // 4. Build result — keep top 3 places per stop, drop empty stops
+  return samplePoints
+    .map((sp) => ({
+      km_marker: sp.km,
+      area_name: sp.name,
+      lat: sp.lat,
+      lng: sp.lng,
+      places: (grouped.get(sp.km) ?? []).slice(0, 3),
+    }))
+    .filter((stop) => stop.places.length > 0);
+}
+
+/**
+ * Single combined OSM filter per category.
+ * `rest_stop` → composite regex covering restaurants + fuel + cafes.
+ * This keeps the Overpass query to N parts (one per stop) to avoid timeouts.
+ */
+function routeSearchFilter(category: string): string {
+  if (category === "rest_stop") {
+    return 'node["amenity"~"restaurant|fast_food|fuel|cafe"]';
+  }
+  return CATEGORY_TO_OSM[category] ?? 'node["amenity"~"restaurant|fast_food|fuel"]';
+}
+
+/** Detect the place category from OSM tags. */
+function detectPOICategory(tags: Record<string, string>): string {
+  if (tags.amenity === "restaurant" || tags.amenity === "fast_food") return "eat";
+  if (tags.amenity === "fuel") return "fuel";
+  if (tags.amenity === "cafe") return "cafe";
+  if (tags.amenity === "charging_station") return "charge";
+  if (tags.amenity === "parking") return "parking";
+  if (tags.tourism === "hotel" || tags.tourism === "motel" || tags.tourism === "guest_house") return "hotel";
+  if (tags.highway === "rest_area" || tags.highway === "services") return "rest_stop";
+  return "eat";
+}
+
+/** Compute cumulative haversine distances along a path (km). */
+function computeCumulativeDistances(path: [number, number][]): number[] {
+  const d = [0];
+  for (let i = 1; i < path.length; i++) {
+    const seg = haversineKm(
+      path[i - 1][1],
+      path[i - 1][0],
+      path[i][1],
+      path[i][0],
+    );
+    d.push(d[i - 1] + seg);
+  }
+  return d;
 }

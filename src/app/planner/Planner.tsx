@@ -122,6 +122,18 @@ export default function Planner() {
             for (const p of output.places) places.push(p as Place);
           }
 
+          if (
+            toolName === "search_along_route" &&
+            Array.isArray(output.rest_stops) &&
+            places.length === 0
+          ) {
+            for (const stop of output.rest_stops as { places?: unknown[] }[]) {
+              if (Array.isArray(stop.places)) {
+                for (const p of stop.places) places.push(p as Place);
+              }
+            }
+          }
+
           if (toolName === "estimate_toll" && output.estimated) {
             tollVnd = (output.toll_vnd as number) ?? 0;
             tollStops = (output.gates as unknown[])?.length ?? 0;
