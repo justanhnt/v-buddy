@@ -20,16 +20,39 @@ export const DEFAULT_CONSUMPTION: Record<string, number> = {
 export function buildMeta(category: string, tags: Record<string, string>): string {
   switch (category) {
     case "eat":
-    case "cafe":
-      return [tags.cuisine, tags.opening_hours].filter(Boolean).join(" · ") || "";
+    case "cafe": {
+      const parts: string[] = [];
+      if (tags.cuisine) parts.push(tags.cuisine.replace(/_/g, " "));
+      if (tags.opening_hours) parts.push(tags.opening_hours);
+      if (tags.brand && !tags.name?.includes(tags.brand)) parts.push(tags.brand);
+      return parts.join(" · ");
+    }
     case "fuel":
       return tags.brand ?? tags.operator ?? "";
     case "charge": {
-      const sockets = tags["socket:type2"] ?? tags["socket:chademo"] ?? "";
-      return sockets ? `${sockets} trụ sạc` : tags.operator ?? "";
+      const parts: string[] = [];
+      const network = tags.network ?? tags.operator ?? tags.brand;
+      if (network) parts.push(network);
+      const socketTypes: string[] = [];
+      if (tags["socket:type2"]) socketTypes.push(`Type 2: ${tags["socket:type2"]}`);
+      if (tags["socket:type2_combo"]) socketTypes.push(`CCS2: ${tags["socket:type2_combo"]}`);
+      if (tags["socket:chademo"]) socketTypes.push(`CHAdeMO: ${tags["socket:chademo"]}`);
+      if (socketTypes.length > 0) parts.push(socketTypes.join(", "));
+      const output = tags["charging_station:output"];
+      if (output) parts.push(output);
+      return parts.join(" · ");
     }
-    case "parking":
-      return tags.fee === "no" ? "Miễn phí" : tags.capacity ? `${tags.capacity} chỗ` : "";
+    case "parking": {
+      const parts: string[] = [];
+      if (tags.parking === "multi-storey") parts.push("Nhà xe");
+      else if (tags.parking === "underground") parts.push("Ngầm");
+      else if (tags.parking === "surface") parts.push("Ngoài trời");
+      if (tags.amenity === "motorcycle_parking") parts.push("Xe máy");
+      if (tags.access === "customers") parts.push("Khách hàng");
+      if (tags.fee === "no") parts.push("Miễn phí");
+      if (tags.capacity) parts.push(`${tags.capacity} chỗ`);
+      return parts.join(" · ");
+    }
     case "hotel":
       return tags.stars ? `${tags.stars} sao` : "";
     default:

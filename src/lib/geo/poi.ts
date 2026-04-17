@@ -1,4 +1,4 @@
-import { UA, CATEGORY_TO_OSM, CATEGORY_LABEL_VI } from "./constants";
+import { UA, CATEGORY_TO_OSM, CATEGORY_LABEL_VI, OVERPASS_ENDPOINTS } from "./constants";
 import { buildAddress } from "./geocoding";
 
 export type POIResult = {
@@ -99,23 +99,32 @@ export function resolvePOIName(tags: Record<string, string>, category: string): 
 export function detectPOICategory(tags: Record<string, string>): string {
   if (tags.amenity === "restaurant" || tags.amenity === "fast_food") return "eat";
   if (tags.amenity === "fuel") return "fuel";
-  if (tags.amenity === "cafe") return "cafe";
+  if (tags.amenity === "cafe" || tags.shop === "coffee") return "cafe";
+  if (tags.cuisine?.match(/coffee|coffee_shop/)) return "cafe";
   if (tags.amenity === "charging_station") return "charge";
-  if (tags.amenity === "parking") return "parking";
+  if (tags.amenity === "parking" || tags.amenity === "motorcycle_parking" || tags.building === "parking") return "parking";
   if (tags.tourism === "hotel" || tags.tourism === "motel" || tags.tourism === "guest_house") return "hotel";
   if (tags.highway === "rest_area" || tags.highway === "services") return "rest_stop";
   return "eat";
 }
 
 /**
- * Single combined OSM filter per category.
- * `rest_stop` → composite regex covering restaurants + fuel + cafes.
+ * OSM filters per category for route-based searches.
+ * `rest_stop` → composite covering restaurants + fuel + cafes + coffee shops.
  */
-export function routeSearchFilter(category: string): string {
+export function routeSearchFilter(category: string): string[] {
   if (category === "rest_stop") {
-    return 'nwr["amenity"~"restaurant|fast_food|fuel|cafe"]';
+    return [
+      'nwr["amenity"~"restaurant|fast_food|fuel|cafe"]',
+      'nwr["shop"="coffee"]',
+    ];
   }
-  return CATEGORY_TO_OSM[category] ?? 'nwr["amenity"~"restaurant|fast_food|fuel"]';
+  return CATEGORY_TO_OSM[category] ?? ['nwr["amenity"~"restaurant|fast_food|fuel"]'];
+}
+
+let _overpassIdx = 0;
+function nextOverpassEndpoint(): string {
+  return OVERPASS_ENDPOINTS[_overpassIdx++ % OVERPASS_ENDPOINTS.length];
 }
 
 export async function searchPOI(
@@ -123,17 +132,15 @@ export async function searchPOI(
   center: { lat: number; lng: number },
   radiusM: number = 5000,
 ): Promise<POIResult[]> {
-  const osmFilter = CATEGORY_TO_OSM[category];
-  if (!osmFilter) return [];
+  const osmFilters = CATEGORY_TO_OSM[category];
+  if (!osmFilters) return [];
 
   try {
-    const query = `
-      [out:json][timeout:10];
-      ${osmFilter}(around:${radiusM},${center.lat},${center.lng});
-      out body center 20;
-    `;
+    const aroundClause = `(around:${radiusM},${center.lat},${center.lng})`;
+    const filterParts = osmFilters.map((f) => `${f}${aroundClause};`).join("");
+    const query = `[out:json][timeout:10];(${filterParts});out body center 30;`;
 
-    const res = await fetch("https://overpass-api.de/api/interpreter", {
+    const res = await fetch(nextOverpassEndpoint(), {
       method: "POST",
       body: `data=${encodeURIComponent(query)}`,
       headers: {

@@ -30,7 +30,7 @@ export function useExtractMapData(
           const toolName = part.type.replace("tool-", "");
 
           if (
-            (toolName === "search_places" || toolName === "get_nearby") &&
+            (toolName === "search_places" || toolName === "get_nearby" || toolName === "search_by_name") &&
             Array.isArray(output.places) &&
             output.places.length > 0
           ) {

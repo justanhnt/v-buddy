@@ -29,6 +29,7 @@ const TOOL_LOADING_LABELS: Record<string, { label: string; icon?: typeof Sun }> 
   estimate_fuel: { label: "Đang tính chi phí nhiên liệu…" },
   trip_summary: { label: "Đang tổng hợp chi phí…", icon: Receipt },
   search_places: { label: "Đang tìm địa điểm…" },
+  search_by_name: { label: "Đang tìm địa điểm…" },
   get_nearby: { label: "Đang tìm dịch vụ gần đây…" },
   compare_routes: { label: "Đang so sánh tuyến đường…", icon: Clock },
   multi_stop_trip: { label: "Đang lên kế hoạch chuyến đi…", icon: Clock },
@@ -76,6 +77,7 @@ export function ToolResult({
   switch (toolType) {
     /* ---- Places ---- */
     case "search_places":
+    case "search_by_name":
     case "get_nearby":
       if (Array.isArray(output.places))
         return <SearchPlacesResult output={output} onPickPlace={onPickPlace} />;

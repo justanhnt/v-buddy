@@ -1,7 +1,20 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { geocode, route, searchPOI, findRestStopsAlongRoute, buildAddress } from "../geo";
+import { geocode, route, searchPOI, findRestStopsAlongRoute, buildAddress, searchPlaces } from "../geo";
 import { haversineKm, buildMeta } from "./helpers";
+
+function guessCategory(item: { class?: string; type?: string }): string {
+  if (item.class === "amenity") {
+    if (item.type === "cafe") return "cafe";
+    if (item.type === "restaurant" || item.type === "fast_food") return "eat";
+    if (item.type === "fuel") return "fuel";
+    if (item.type === "charging_station") return "charge";
+    if (item.type === "parking" || item.type === "motorcycle_parking") return "parking";
+  }
+  if (item.class === "tourism") return "hotel";
+  if (item.class === "shop" && item.type === "coffee") return "cafe";
+  return "eat";
+}
 
 export const search_places = tool({
   description:
@@ -173,6 +186,43 @@ export const search_along_route = tool({
           meta: buildMeta(p.category, p.tags),
         })),
       })),
+    };
+  },
+});
+
+export const search_by_name = tool({
+  description:
+    "Tìm kiếm địa điểm theo tên hoặc địa chỉ cụ thể. Dùng khi người dùng hỏi về một quán/cửa hàng cụ thể (ví dụ 'Highland Coffee Nguyễn Huệ', 'Vinfast Charging Quận 7') hoặc tìm theo địa chỉ (ví dụ '123 Nguyễn Trãi Quận 1').",
+  inputSchema: z.object({
+    query: z.string().describe("Tên địa điểm hoặc địa chỉ cần tìm"),
+    lat: z.number().optional().describe("Vĩ độ để ưu tiên kết quả gần đây"),
+    lng: z.number().optional().describe("Kinh độ để ưu tiên kết quả gần đây"),
+  }),
+  execute: async ({ query, lat, lng }) => {
+    const bias = lat && lng ? { lat, lng } : undefined;
+    const results = await searchPlaces(query, bias);
+
+    if (results.length === 0) {
+      return {
+        places: [],
+        message: `Không tìm thấy "${query}". Thử tên khác hoặc thêm tên quận/thành phố.`,
+      };
+    }
+
+    return {
+      places: results.map((item) => ({
+        id: item.place_id,
+        name: item.displayName.split(",")[0],
+        address: item.displayName.split(",").slice(1).join(",").trim(),
+        coord: [item.lng, item.lat] as [number, number],
+        category: guessCategory(item),
+        meta: item.type?.replace(/_/g, " ") ?? "",
+        distance_km:
+          lat && lng
+            ? Math.round(haversineKm(lat, lng, item.lat, item.lng) * 10) / 10
+            : undefined,
+      })),
+      center: bias,
     };
   },
 });

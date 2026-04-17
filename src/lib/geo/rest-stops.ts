@@ -60,7 +60,7 @@ export async function findRestStopsAlongRoute(
 
   // 2. Query Overpass in small batches (3 stops each), alternating between
   //    two Overpass endpoints to avoid rate-limit errors on long routes.
-  const filter = routeSearchFilter(category);
+  const filters = routeSearchFilter(category);
   const BATCH = 3;
   const batches: typeof samplePoints[] = [];
   for (let i = 0; i < samplePoints.length; i += BATCH) {
@@ -75,9 +75,10 @@ export async function findRestStopsAlongRoute(
     for (let j = 0; j < 2 && r + j < batches.length; j++) {
       const batch = batches[r + j];
       const endpoint = OVERPASS_ENDPOINTS[j];
-      const parts = batch.map(
-        (p) => `${filter}(around:${searchRadiusM},${p.lat},${p.lng});`,
-      );
+      const parts = batch.map((p) => {
+        const around = `(around:${searchRadiusM},${p.lat},${p.lng})`;
+        return filters.map((f) => `${f}${around};`).join("");
+      });
       const q = `[out:json][timeout:15];(${parts.join("")});out body center ${batch.length * 5};`;
 
       promises.push(

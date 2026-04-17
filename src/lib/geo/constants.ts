@@ -29,14 +29,22 @@ export const VN_CORRIDOR: { lat: number; lng: number }[] = [
   { lat: 10.04, lng: 105.78 }, // Cần Thơ
 ];
 
-export const CATEGORY_TO_OSM: Record<string, string> = {
-  eat: 'nwr["amenity"~"restaurant|fast_food"]',
-  cafe: 'nwr["amenity"="cafe"]',
-  fuel: 'nwr["amenity"="fuel"]',
-  charge: 'nwr["amenity"="charging_station"]',
-  parking: 'nwr["amenity"="parking"]',
-  hotel: 'nwr["tourism"~"hotel|motel|guest_house"]',
-  rest_stop: 'nwr["highway"~"rest_area|services"]',
+export const CATEGORY_TO_OSM: Record<string, string[]> = {
+  eat: ['nwr["amenity"~"restaurant|fast_food"]'],
+  cafe: [
+    'nwr["amenity"="cafe"]',
+    'nwr["shop"="coffee"]',
+    'nwr["cuisine"~"coffee|coffee_shop"]',
+  ],
+  fuel: ['nwr["amenity"="fuel"]'],
+  charge: ['nwr["amenity"="charging_station"]'],
+  parking: [
+    'nwr["amenity"="parking"]',
+    'nwr["amenity"="motorcycle_parking"]',
+    'nwr["building"="parking"]',
+  ],
+  hotel: ['nwr["tourism"~"hotel|motel|guest_house"]'],
+  rest_stop: ['nwr["highway"~"rest_area|services"]'],
 };
 
 export const CATEGORY_LABEL_VI: Record<string, string> = {
