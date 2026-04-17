@@ -93,11 +93,13 @@ export default function Planner() {
   const voice = useVoice(send, "vi-VN");
 
   const { mapPlaces, activeRoute } = useMemo(() => {
-    const places: Place[] = [];
+    const allPlaces: Place[] = [];
+    const seenPlaceIds = new Set<string>();
     let route: RouteResult | null = null;
     let tollVnd = 0;
     let tollStops = 0;
 
+    // Iterate backwards: pick only the latest route, but collect places from ALL messages
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       if (msg.role !== "assistant") continue;
@@ -116,25 +118,35 @@ export default function Planner() {
           if (
             (toolName === "search_places" || toolName === "get_nearby") &&
             Array.isArray(output.places) &&
-            output.places.length > 0 &&
-            places.length === 0
+            output.places.length > 0
           ) {
-            for (const p of output.places) places.push(p as Place);
-          }
-
-          if (
-            toolName === "search_along_route" &&
-            Array.isArray(output.rest_stops) &&
-            places.length === 0
-          ) {
-            for (const stop of output.rest_stops as { places?: unknown[] }[]) {
-              if (Array.isArray(stop.places)) {
-                for (const p of stop.places) places.push(p as Place);
+            for (const p of output.places) {
+              const place = p as Place;
+              if (!seenPlaceIds.has(place.id)) {
+                seenPlaceIds.add(place.id);
+                allPlaces.push(place);
               }
             }
           }
 
-          if (toolName === "estimate_toll" && output.estimated) {
+          if (
+            toolName === "search_along_route" &&
+            Array.isArray(output.rest_stops)
+          ) {
+            for (const stop of output.rest_stops as { places?: unknown[] }[]) {
+              if (Array.isArray(stop.places)) {
+                for (const p of stop.places) {
+                  const place = p as Place;
+                  if (!seenPlaceIds.has(place.id)) {
+                    seenPlaceIds.add(place.id);
+                    allPlaces.push(place);
+                  }
+                }
+              }
+            }
+          }
+
+          if (toolName === "estimate_toll" && output.estimated && !tollVnd) {
             tollVnd = (output.toll_vnd as number) ?? 0;
             tollStops = (output.gates as unknown[])?.length ?? 0;
           }
@@ -226,8 +238,6 @@ export default function Planner() {
           }
         }
       }
-
-      if (places.length > 0 || route) break;
     }
 
     if (route && tollVnd > 0 && route.tollVnd === 0) {
@@ -235,7 +245,7 @@ export default function Planner() {
       route.tollStops = tollStops;
     }
 
-    return { mapPlaces: places, activeRoute: route };
+    return { mapPlaces: allPlaces, activeRoute: route };
   }, [messages, selectedRouteIdx]);
 
   const handlePickMarker = useCallback(
