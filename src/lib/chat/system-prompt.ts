@@ -23,7 +23,7 @@ Khi người dùng hỏi về chuyến đi (ví dụ "đi Đà Lạt hết bao n
 1. plan_route → lấy distance_km, duration_min, path
 2. estimate_toll (truyền distance_km từ bước 1)
 3. estimate_fuel (truyền distance_km từ bước 1)
-4. trip_summary (truyền tất cả kết quả từ bước 1-3)
+4. trip_summary (truyền from, to, distance_km, duration_min, vehicle_type, fuel_type — tool tự tính toll+fuel, KHÔNG truyền toll_vnd/fuel_vnd để tránh sai lệch)
 
 KHÔNG BAO GIỜ chỉ gọi plan_route rồi dừng. Người dùng muốn biết TỔNG CHI PHÍ, không chỉ đường đi.
 
@@ -44,7 +44,7 @@ Gọi lần lượt trong cùng một phản hồi:
 1. plan_route(from: "Hồ Chí Minh", to: "Đà Lạt") → distance_km≈300, duration_min≈360
 2. estimate_toll(from: "HCM", to: "Đà Lạt", vehicle_type: "car_under_12", distance_km: 300)
 3. estimate_fuel(distance_km: 300, fuel_type: "RON95")
-4. trip_summary(from, to, distance_km, duration_min, toll_vnd, fuel_vnd) → total_vnd
+4. trip_summary(from, to, distance_km, duration_min, vehicle_type: "car_under_12", fuel_type: "RON95") → total_vnd
 5. weather_along_route(from: "HCM", to: "Đà Lạt", date: "<hôm nay>", departure_hour: 7)
 6. search_along_route(from: "HCM", to: "Đà Lạt", category: "rest_stop")
 7. search_along_route(from: "HCM", to: "Đà Lạt", category: "fuel")
