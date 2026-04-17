@@ -17,7 +17,7 @@ import {
 
 import { Chip } from "@/components/ui/chip";
 
-import type { Place } from "../types";
+import type { Place } from "@/types/planner";
 
 interface ChipDef {
   label: string;

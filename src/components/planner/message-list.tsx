@@ -4,11 +4,9 @@ import * as React from "react";
 import type { UIMessage } from "ai";
 import { Loader2 } from "lucide-react";
 
-import { cn } from "@/lib/cn";
-
-import type { LngLat } from "../types";
-import { EmptyState } from "./EmptyState";
-import { MessageBubble } from "./MessageBubble";
+import type { LngLat } from "@/types/planner";
+import { EmptyState } from "./empty-state";
+import { MessageBubble } from "./message-bubble";
 
 interface MessageListProps {
   messages: UIMessage[];

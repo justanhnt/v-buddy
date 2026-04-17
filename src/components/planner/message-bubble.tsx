@@ -7,8 +7,8 @@ import remarkGfm from "remark-gfm";
 
 import { cn } from "@/lib/cn";
 
-import type { LngLat } from "../types";
-import { ToolResult } from "./ToolResult";
+import type { LngLat } from "@/types/planner";
+import { ToolResult } from "./tool-results";
 
 const mdComponents = {
   table: (props: ComponentPropsWithoutRef<"table">) => (

@@ -1,5 +1,3 @@
-export type Mode = "route" | "trip" | "eat" | "fuel" | "charge" | "parking" | "insurance";
-
 export type PlaceCategory = "eat" | "cafe" | "fuel" | "charge" | "parking" | "hotel" | "rest_stop" | "insurance";
 
 export type LngLat = [number, number];

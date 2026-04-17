@@ -6,8 +6,8 @@ import { Clock, Leaf, Route, Waves, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
 
-import { VND } from "../mock-data";
-import type { LngLat } from "../types";
+import { VND } from "@/lib/format";
+import type { LngLat } from "@/types/planner";
 
 type TagVariant = "success" | "info" | "warning" | "default" | "muted";
 type Tag = {

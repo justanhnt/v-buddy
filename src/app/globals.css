@@ -218,11 +218,6 @@ body {
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .planner-marker,
-  .planner-marker--selected {
-    transition: none !important;
-    transform: none !important;
-  }
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;

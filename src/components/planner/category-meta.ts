@@ -10,7 +10,7 @@ import {
   Coffee as RestStop,
 } from "lucide-react";
 
-import type { PlaceCategory } from "./types";
+import type { PlaceCategory } from "@/types/planner";
 
 export const CATEGORY_LABEL: Record<string, string> = {
   eat: "Quán ăn",

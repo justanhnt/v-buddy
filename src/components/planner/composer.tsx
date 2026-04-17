@@ -17,8 +17,8 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/cn";
 
-import type { VoiceState } from "../useVoice";
-import { MicButton, type MicButtonState } from "./MicButton";
+import type { VoiceState } from "@/hooks/use-voice";
+import { MicButton, type MicButtonState } from "./mic-button";
 
 interface ComposerProps {
   voice: VoiceState;

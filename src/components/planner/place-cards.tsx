@@ -8,8 +8,8 @@ import {
   CATEGORY_ICON,
   CATEGORY_TILE,
   getCategoryLabel,
-} from "../category-meta";
-import type { LngLat, Place, PlaceCategory } from "../types";
+} from "./category-meta";
+import type { LngLat, Place, PlaceCategory } from "@/types/planner";
 
 interface PlaceCardsProps {
   category: PlaceCategory | string;
