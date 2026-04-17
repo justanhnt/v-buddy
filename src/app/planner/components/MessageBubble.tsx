@@ -43,6 +43,24 @@ export function MessageBubble({
     );
   }
 
+  // Deduplicate: for tools that can appear multiple times (search_places,
+  // get_nearby), only show the LAST completed result to avoid duplicate cards.
+  const DEDUP_TOOLS = new Set(["search_places", "get_nearby"]);
+  const lastToolIdx = new Map<string, number>();
+  message.parts.forEach((part, idx) => {
+    if (
+      typeof part.type === "string" &&
+      part.type.startsWith("tool-") &&
+      "state" in part &&
+      part.state === "output-available"
+    ) {
+      const toolName = part.type.replace("tool-", "");
+      if (DEDUP_TOOLS.has(toolName)) {
+        lastToolIdx.set(toolName, idx);
+      }
+    }
+  });
+
   return (
     <li className="flex max-w-[92%] flex-col gap-2">
       {message.parts.map((part, idx) => {
@@ -68,6 +86,16 @@ export function MessageBubble({
           part.type.startsWith("tool-") &&
           "state" in part
         ) {
+          // Skip earlier duplicate tool results
+          const toolName = part.type.replace("tool-", "");
+          if (
+            DEDUP_TOOLS.has(toolName) &&
+            part.state === "output-available" &&
+            lastToolIdx.get(toolName) !== idx
+          ) {
+            return null;
+          }
+
           return (
             <ToolResult
               key={idx}

@@ -117,15 +117,14 @@ const TOOL_STEP_LABELS: Record<string, string> = {
 };
 
 function StreamingIndicator({ messages }: { messages: UIMessage[] }) {
-  // Look at the last assistant message to track tool progress
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
 
   if (!lastAssistant) {
     return <ThinkingDots />;
   }
 
-  // Collect tool steps from parts
-  const toolSteps: { name: string; done: boolean }[] = [];
+  // Collect tool steps, deduplicating by name with counts
+  const stepMap = new Map<string, { total: number; done: number }>();
   for (const part of lastAssistant.parts) {
     if (
       typeof part.type === "string" &&
@@ -133,51 +132,61 @@ function StreamingIndicator({ messages }: { messages: UIMessage[] }) {
       "state" in part
     ) {
       const name = part.type.replace("tool-", "");
-      const done =
+      const isDone =
         part.state === "output-available" || part.state === "output-error";
-      toolSteps.push({ name, done });
+      const entry = stepMap.get(name) ?? { total: 0, done: 0 };
+      entry.total++;
+      if (isDone) entry.done++;
+      stepMap.set(name, entry);
     }
   }
 
-  // If there are active tool steps, show progress
-  if (toolSteps.length > 0) {
-    const hasActive = toolSteps.some((s) => !s.done);
-    // Only show if there's still something in flight
-    if (!hasActive) return null;
+  if (stepMap.size > 0) {
+    const allDone = [...stepMap.values()].every((e) => e.done === e.total);
+    if (allDone) return null;
+
+    // Find the currently active step (first one not fully done)
+    let activeLabel = "";
+    for (const [name, entry] of stepMap) {
+      if (entry.done < entry.total) {
+        activeLabel = TOOL_STEP_LABELS[name] ?? name;
+        break;
+      }
+    }
+
+    const totalSteps = stepMap.size;
+    const doneSteps = [...stepMap.values()].filter((e) => e.done === e.total).length;
 
     return (
       <li className="self-start max-w-[85%]" aria-label="Đang xử lý">
-        <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2.5 rounded-2xl border border-border bg-card px-4 py-2.5 text-xs text-muted-foreground">
           <Loader2
-            className="h-3.5 w-3.5 animate-spin text-primary motion-reduce:animate-none"
+            className="h-3.5 w-3.5 animate-spin text-primary motion-reduce:animate-none shrink-0"
             aria-hidden
           />
-          <div className="flex items-center gap-1.5">
-            {toolSteps.map((step, i) => (
-              <React.Fragment key={i}>
-                <span
-                  className={cn(
-                    "transition-colors",
-                    step.done
-                      ? "text-success font-medium"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {TOOL_STEP_LABELS[step.name] ?? step.name}
-                  {step.done && " ✓"}
+          <div className="flex flex-col gap-1 min-w-0">
+            <span className="font-medium text-foreground/80">
+              {activeLabel}…
+            </span>
+            {totalSteps > 1 && (
+              <div className="flex items-center gap-2">
+                <div className="h-1 flex-1 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-300"
+                    style={{ width: `${Math.round((doneSteps / totalSteps) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-[10px] tabular-nums shrink-0">
+                  {doneSteps}/{totalSteps}
                 </span>
-                {i < toolSteps.length - 1 && (
-                  <span className="text-border" aria-hidden>→</span>
-                )}
-              </React.Fragment>
-            ))}
+              </div>
+            )}
           </div>
         </div>
       </li>
     );
   }
 
-  // Check if last message is from user (waiting for first response)
   if (messages[messages.length - 1]?.role === "user") {
     return <ThinkingDots />;
   }

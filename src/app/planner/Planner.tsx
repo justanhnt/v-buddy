@@ -263,7 +263,7 @@ export default function Planner() {
         aria-label="Trợ lý và lịch sử"
         className={cn(
           "z-20 flex flex-col bg-background/95 backdrop-blur-md shadow-xl ring-1 ring-border",
-          "md:static md:h-full md:w-[440px] md:shrink-0 md:bg-background md:shadow-none",
+          "md:static md:h-full md:w-[520px] md:shrink-0 md:bg-background md:shadow-none",
           "absolute inset-x-0 bottom-0 rounded-t-2xl md:rounded-none",
           "transition-[height] duration-300 ease-out motion-reduce:transition-none",
           sheetOpen ? "h-[82dvh]" : "h-[164px]",
@@ -336,11 +336,13 @@ export default function Planner() {
           onSuggestion={send}
         />
 
-        <QuickChips
-          disabled={isLoading}
-          onSelect={sendAndClearPick}
-          pickedPlace={pickedPlace}
-        />
+        {messages.length > 1 && (
+          <QuickChips
+            disabled={isLoading}
+            onSelect={sendAndClearPick}
+            pickedPlace={pickedPlace}
+          />
+        )}
 
         <Composer
           voice={voice}

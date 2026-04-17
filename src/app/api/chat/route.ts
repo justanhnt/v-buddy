@@ -50,13 +50,77 @@ KHÔNG BAO GIỜ chỉ gọi plan_route rồi dừng. Người dùng muốn bi�
 - Text trả lời nên NGẮN GỌN vì các tool card đã hiển thị chi tiết. Chỉ cần tóm tắt và gợi ý bước tiếp theo.
 - Khi câu hỏi KHÔNG thuộc phạm vi các tool khác (ví dụ: tin tức giao thông, luật mới, giá vé máy bay, sự kiện du lịch, mẹo lái xe, thông tin chung), hãy dùng web_search. Thêm "Việt Nam" vào query nếu liên quan.`;
 
+/**
+ * Strip heavy data (path arrays, full search results) from older tool outputs
+ * so the LLM context stays small. The UI retains the full data.
+ */
+function trimMessagesForModel(messages: UIMessage[]): UIMessage[] {
+  // Keep at most the last 20 messages (10 user + 10 assistant turns)
+  const recent = messages.slice(-20);
+
+  // For all but the last 4 messages, strip large tool output fields
+  return recent.map((msg, idx) => {
+    const isRecent = idx >= recent.length - 4;
+    if (isRecent || msg.role !== "assistant") return msg;
+
+    return {
+      ...msg,
+      parts: msg.parts.map((part) => {
+        if (
+          typeof part.type === "string" &&
+          part.type.startsWith("tool-") &&
+          "state" in part &&
+          part.state === "output-available" &&
+          "output" in part &&
+          part.output &&
+          typeof part.output === "object"
+        ) {
+          const output = part.output as Record<string, unknown>;
+          const cleaned = { ...output };
+
+          // Remove path arrays (biggest offender)
+          if (Array.isArray(cleaned.path)) {
+            cleaned.path = `[${(cleaned.path as unknown[]).length} points]`;
+          }
+          // Remove paths from nested routes/legs
+          if (Array.isArray(cleaned.routes)) {
+            cleaned.routes = (cleaned.routes as Record<string, unknown>[]).map((r) => {
+              const { path: _p, ...rest } = r;
+              return rest;
+            });
+          }
+          if (Array.isArray(cleaned.legs)) {
+            cleaned.legs = (cleaned.legs as Record<string, unknown>[]).map((l) => {
+              const { path: _p, ...rest } = l;
+              return rest;
+            });
+          }
+          // Trim places lists
+          if (Array.isArray(cleaned.places) && (cleaned.places as unknown[]).length > 3) {
+            cleaned.places = (cleaned.places as Record<string, unknown>[]).slice(0, 3);
+          }
+          // Trim web search results
+          if (Array.isArray(cleaned.results) && (cleaned.results as unknown[]).length > 2) {
+            cleaned.results = (cleaned.results as Record<string, unknown>[]).slice(0, 2);
+          }
+
+          return { ...part, output: cleaned };
+        }
+        return part;
+      }),
+    };
+  });
+}
+
 export async function POST(req: Request) {
   const { messages, userLocation } = (await req.json()) as {
     messages: UIMessage[];
     userLocation?: { lat: number; lng: number; name: string | null };
   };
 
-  const modelMessages = await convertToModelMessages(messages, {
+  const trimmed = trimMessagesForModel(messages);
+
+  const modelMessages = await convertToModelMessages(trimmed, {
     tools,
   });
 

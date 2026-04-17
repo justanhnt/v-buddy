@@ -87,9 +87,15 @@ const subscribeNoop = () => () => {};
 const getSupportSnapshot = () => getSRCtor() !== null;
 const getSupportServerSnapshot = () => false;
 
+// How long to wait in silence after detected speech before auto-stopping.
+const DEFAULT_SILENCE_MS = 2500;
+// Longer grace period before the user has said anything yet.
+const INITIAL_SILENCE_MULTIPLIER = 2.4;
+
 export function useVoice(
   onFinal: (text: string) => void,
   lang = "vi-VN",
+  silenceMs: number = DEFAULT_SILENCE_MS,
 ): VoiceState {
   const supported = useSyncExternalStore(
     subscribeNoop,
@@ -103,6 +109,8 @@ export function useVoice(
   const finalRef = useRef("");
   const pendingTranscriptRef = useRef<string | null>(null);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const manualStopRef = useRef(false);
 
   const flushTranscript = useCallback(() => {
     flushTimerRef.current = null;
@@ -123,6 +131,29 @@ export function useVoice(
 
   const clearError = useCallback(() => setErrorCode(null), []);
 
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  }, []);
+
+  const armSilenceTimer = useCallback(
+    (ms: number) => {
+      clearSilenceTimer();
+      silenceTimerRef.current = setTimeout(() => {
+        silenceTimerRef.current = null;
+        manualStopRef.current = true;
+        const rec = recRef.current;
+        if (!rec) return;
+        try {
+          rec.stop();
+        } catch {}
+      }, ms);
+    },
+    [clearSilenceTimer],
+  );
+
   const start = useCallback(() => {
     const Ctor = getSRCtor();
     if (!Ctor) {
@@ -138,13 +169,15 @@ export function useVoice(
     const rec = new Ctor();
     rec.lang = lang;
     rec.interimResults = true;
-    rec.continuous = false;
+    rec.continuous = true;
     finalRef.current = "";
     pendingTranscriptRef.current = null;
     if (flushTimerRef.current) {
       clearTimeout(flushTimerRef.current);
       flushTimerRef.current = null;
     }
+    clearSilenceTimer();
+    manualStopRef.current = false;
     setTranscript("");
     setErrorCode(null);
 
@@ -158,16 +191,38 @@ export function useVoice(
           interim += r[0].transcript;
         }
       }
-      queueTranscript((finalRef.current + " " + interim).trim());
+      const combined = (finalRef.current + " " + interim).trim();
+      queueTranscript(combined);
+      if (combined.length > 0) {
+        armSilenceTimer(silenceMs);
+      }
     };
     rec.onerror = (e) => {
       const raw = e.error || "unknown";
+      // "no-speech" just means the browser hit its internal silence limit —
+      // we handle our own silence timing, so don't surface that as an error.
+      if (raw === "no-speech") {
+        manualStopRef.current = true;
+        return;
+      }
       const code: VoiceErrorCode = KNOWN_CODES.has(raw)
         ? (raw as VoiceErrorCode)
         : "unknown";
+      manualStopRef.current = true;
       setErrorCode(code);
     };
     rec.onend = () => {
+      // If the browser auto-ended before the user (or silence timer) asked us
+      // to, try to resume so short pauses don't cut off the user mid-sentence.
+      if (!manualStopRef.current) {
+        try {
+          rec.start();
+          return;
+        } catch {
+          // fall through to finalize
+        }
+      }
+      clearSilenceTimer();
       if (flushTimerRef.current) {
         clearTimeout(flushTimerRef.current);
         flushTranscript();
@@ -182,24 +237,37 @@ export function useVoice(
       rec.start();
       recRef.current = rec;
       setListening(true);
+      armSilenceTimer(Math.round(silenceMs * INITIAL_SILENCE_MULTIPLIER));
     } catch {
       setErrorCode("unknown");
     }
-  }, [lang, onFinal, queueTranscript, flushTranscript]);
+  }, [
+    armSilenceTimer,
+    clearSilenceTimer,
+    flushTranscript,
+    lang,
+    onFinal,
+    queueTranscript,
+    silenceMs,
+  ]);
 
   const stop = useCallback(() => {
     const rec = recRef.current;
     if (!rec) return;
+    manualStopRef.current = true;
+    clearSilenceTimer();
     try {
       rec.stop();
     } catch {}
-  }, []);
+  }, [clearSilenceTimer]);
 
   useEffect(() => {
     return () => {
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       const rec = recRef.current;
       if (rec) {
+        manualStopRef.current = true;
         try {
           rec.abort();
         } catch {}
