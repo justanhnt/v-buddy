@@ -1,6 +1,7 @@
-import { Camera, ExternalLink, Globe } from "lucide-react";
+import { Camera, Clock, ExternalLink, Globe } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
+import { VND } from "@/lib/format";
 
 export function AnalyzeImageResult({
   output,
@@ -26,6 +27,55 @@ export function AnalyzeImageResult({
       <p className="mt-1.5 text-xs text-foreground/80">
         {output.analysis as string}
       </p>
+    </Card>
+  );
+}
+
+export function TripHistoryResult({
+  output,
+}: {
+  output: Record<string, unknown>;
+}) {
+  const trips = output.trips as {
+    id: string;
+    date: string;
+    from: string;
+    to: string;
+    distanceKm: number;
+    totalVnd: number;
+  }[];
+  const totalSpent = output.total_spent_vnd as number;
+
+  return (
+    <Card className="p-3">
+      <div className="flex items-center gap-1.5">
+        <Clock className="h-4 w-4 text-primary" aria-hidden />
+        <p className="text-xs font-medium uppercase tracking-wide text-primary">
+          Lịch sử chuyến đi
+        </p>
+      </div>
+      <ul className="mt-2 space-y-1.5">
+        {trips.map((t) => (
+          <li
+            key={t.id}
+            className="flex justify-between text-xs text-foreground/80"
+          >
+            <span>
+              {t.date} · {t.from} → {t.to}
+              <span className="ml-1 text-muted-foreground">
+                ({t.distanceKm} km)
+              </span>
+            </span>
+            <span className="font-medium">{VND(t.totalVnd)}</span>
+          </li>
+        ))}
+      </ul>
+      {totalSpent > 0 && (
+        <div className="mt-2 flex justify-between border-t border-border pt-1.5 text-xs font-semibold">
+          <span>Tổng chi ({output.total_trips as number} chuyến)</span>
+          <span>{VND(totalSpent)}</span>
+        </div>
+      )}
     </Card>
   );
 }

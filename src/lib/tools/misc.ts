@@ -1,6 +1,7 @@
 import { tool, generateText } from "ai";
 import { z } from "zod";
 import { checkWallet } from "../wallet-mock";
+import { getTripHistory } from "../trip-history-mock";
 import { visionModel } from "../dashscope";
 
 export const check_wallet = tool({
@@ -63,6 +64,21 @@ export const analyze_image = tool({
         error: true,
       };
     }
+  },
+});
+
+export const check_trip_history = tool({
+  description:
+    "Xem lịch sử chuyến đi gần đây. Dùng khi người dùng hỏi về các chuyến đi trước, chi phí đã chi, hoặc muốn so sánh với chuyến đi mới.",
+  inputSchema: z.object({
+    limit: z
+      .number()
+      .optional()
+      .default(5)
+      .describe("Số chuyến đi muốn xem (tối đa 6)"),
+  }),
+  execute: async ({ limit }) => {
+    return getTripHistory(limit);
   },
 });
 

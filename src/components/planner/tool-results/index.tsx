@@ -11,7 +11,7 @@ import { PlanRouteResult, CompareRoutesResult, MultiStopTripResult } from "./rou
 import { SearchPlacesResult, SearchAlongRouteResult } from "./places";
 import { EstimateTollResult, EstimateFuelResult, TripSummaryResult, CheckWalletResult } from "./costs";
 import { GetWeatherResult, WeatherAlongRouteResult } from "./weather";
-import { AnalyzeImageResult, WebSearchResult } from "./misc";
+import { AnalyzeImageResult, TripHistoryResult, WebSearchResult } from "./misc";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type ToolPart = any;
@@ -37,6 +37,7 @@ const TOOL_LOADING_LABELS: Record<string, { label: string; icon?: typeof Sun }> 
   get_weather: { label: "Đang xem thời tiết…", icon: Cloud },
   analyze_image: { label: "Đang phân tích ảnh…", icon: Camera },
   web_search: { label: "Đang tìm kiếm trên web…", icon: Globe },
+  check_trip_history: { label: "Đang xem lịch sử chuyến đi…", icon: Clock },
   search_along_route: { label: "Đang tìm dọc đường…", icon: Route },
   weather_along_route: { label: "Đang xem thời tiết dọc đường…", icon: Cloud },
 };
@@ -149,6 +150,11 @@ export function ToolResult({
     case "web_search":
       if (Array.isArray(output.results))
         return <WebSearchResult output={output} />;
+      break;
+
+    case "check_trip_history":
+      if (Array.isArray(output.trips))
+        return <TripHistoryResult output={output} />;
       break;
   }
 

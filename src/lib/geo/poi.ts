@@ -1,5 +1,6 @@
 import { UA, CATEGORY_TO_OSM, CATEGORY_LABEL_VI, OVERPASS_ENDPOINTS } from "./constants";
 import { buildAddress } from "./geocoding";
+import { fallbackPOI } from "./poi-fallback";
 
 export type POIResult = {
   id: string;
@@ -166,8 +167,11 @@ export async function searchPOI(
       })
       .filter(Boolean) as POIResult[];
 
-    return deduplicatePlaces(raw);
+    if (raw.length > 0) return deduplicatePlaces(raw);
+    // Overpass returned empty — try fallback mock data
+    return fallbackPOI(category, center, radiusM / 1000);
   } catch {
-    return [];
+    // Overpass unreachable — use fallback mock data for demo
+    return fallbackPOI(category, center, radiusM / 1000);
   }
 }

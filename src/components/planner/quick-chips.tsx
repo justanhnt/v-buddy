@@ -2,13 +2,16 @@
 
 import * as React from "react";
 import {
+  Clock,
   Cloud,
+  Coffee,
   Fuel,
   Map,
   MapPin,
   Navigation,
   ParkingSquare,
   Receipt,
+  Route,
   Sparkles,
   Utensils,
   Wallet,
@@ -26,15 +29,15 @@ interface ChipDef {
 }
 
 const DEFAULT_CHIPS: ChipDef[] = [
-  { label: "Lên kế hoạch đi Đà Lạt", icon: Sparkles },
-  { label: "Lên kế hoạch đi Vũng Tàu cuối tuần", icon: Sparkles },
-  { label: "Đi Đà Lạt hết bao nhiêu?", icon: Receipt },
+  { label: "Lên kế hoạch đi Đà Lạt cuối tuần", icon: Sparkles },
+  { label: "Đi cafe ở Thảo Điền, tìm chỗ đậu xe", icon: Coffee },
   { label: "So sánh đường đi Vũng Tàu", icon: Map },
+  { label: "HCM → Đà Lạt → Nha Trang → HCM", icon: Route },
+  { label: "Lịch sử chuyến đi", icon: Clock },
   { label: "Quán ăn dọc đường đi Đà Lạt", icon: Utensils },
   { label: "Trạm sạc gần đây", icon: Zap },
   { label: "Số dư ví VETC", icon: Wallet },
-  { label: "Thời tiết dọc đường đi Đà Lạt ngày mai", icon: Cloud },
-  { label: "Đổ xăng", icon: Fuel },
+  { label: "Thời tiết dọc đường đi Nha Trang thứ 7", icon: Cloud },
 ];
 
 function getPlaceChips(place: Place): ChipDef[] {

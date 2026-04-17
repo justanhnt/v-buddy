@@ -70,6 +70,39 @@ export const TOLL_ROUTES: Record<
       { name: "Trạm Cầu Giẽ – Ninh Bình", baseFee: 90_000 },
     ],
   },
+  "danang-hue": {
+    name: "Đà Nẵng → Huế",
+    gates: [
+      { name: "Trạm La Sơn – Túy Loan", baseFee: 50_000 },
+    ],
+  },
+  "danang-quangngai": {
+    name: "Đà Nẵng → Quảng Ngãi",
+    gates: [
+      { name: "Trạm Túy Loan – Quảng Ngãi", baseFee: 75_000 },
+    ],
+  },
+  "danang-quynhon": {
+    name: "Đà Nẵng → Quy Nhơn",
+    gates: [
+      { name: "Trạm Túy Loan – Quảng Ngãi", baseFee: 75_000 },
+      { name: "Trạm Quảng Ngãi – Bình Định", baseFee: 60_000 },
+    ],
+  },
+  "hanoi-thanhhoa": {
+    name: "Hà Nội → Thanh Hóa",
+    gates: [
+      { name: "Trạm Cầu Giẽ – Ninh Bình", baseFee: 90_000 },
+      { name: "Trạm Ninh Bình – Thanh Hóa", baseFee: 50_000 },
+    ],
+  },
+  "hanoi-quangninh": {
+    name: "Hà Nội → Quảng Ninh (Hạ Long)",
+    gates: [
+      { name: "Trạm Hà Nội – Hải Phòng (nhánh Quảng Ninh)", baseFee: 130_000 },
+      { name: "Trạm Hạ Long – Vân Đồn", baseFee: 50_000 },
+    ],
+  },
 };
 
 // Per-km fallback toll rate (VND/km for Group 1 vehicles on expressways).
@@ -89,15 +122,42 @@ export const CITY_ALIASES: Record<string, string[]> = {
   haiphong: ["haiphong", "tphaiphong"],
   laocai: ["laocai", "sapa"],
   ninhbinh: ["ninhbinh", "trangan", "baidinh"],
+  danang: ["danang", "tpdanang", "danangthanh"],
+  hue: ["hue", "tphue", "thuathienhue"],
+  quangngai: ["quangngai", "tpquangngai"],
+  quynhon: ["quynhon", "binhdinh", "tpquynhon"],
+  thanhhoa: ["thanhhoa", "tpthanhhoa"],
+  quangninh: ["quangninh", "halong", "halongbay", "vandon"],
 };
 
 // Fuel prices in VND per liter (or per kWh for electric).
 // Approximate as of April 2025.
-export const FUEL_PRICES_UPDATED = "2025-04";
+// Typical parking costs in VND (demo estimates).
+export const PARKING_PRICES: Record<string, { label: string; fee_vnd: number; unit: string }[]> = {
+  downtown: [
+    { label: "Ô tô (bãi hầm/TTTM)", fee_vnd: 40_000, unit: "lượt" },
+    { label: "Ô tô (bãi ngoài trời)", fee_vnd: 25_000, unit: "lượt" },
+    { label: "Xe máy", fee_vnd: 5_000, unit: "lượt" },
+  ],
+  airport: [
+    { label: "Ô tô (sân bay)", fee_vnd: 80_000, unit: "lượt" },
+    { label: "Xe máy (sân bay)", fee_vnd: 15_000, unit: "lượt" },
+  ],
+  tourist: [
+    { label: "Ô tô (khu du lịch)", fee_vnd: 30_000, unit: "lượt" },
+    { label: "Xe máy (khu du lịch)", fee_vnd: 10_000, unit: "lượt" },
+  ],
+  residential: [
+    { label: "Ô tô (khu dân cư)", fee_vnd: 20_000, unit: "lượt" },
+    { label: "Xe máy", fee_vnd: 3_000, unit: "lượt" },
+  ],
+};
+
+export const FUEL_PRICES_UPDATED = "2026-04";
 
 export const FUEL_PRICES: Record<string, number> = {
-  RON95: 23_450,
-  RON92: 22_580,
-  diesel: 20_900,
-  electric: 3_500, // VNĐ per kWh at public charger
+  RON95: 24_110,
+  RON92: 23_250,
+  diesel: 21_450,
+  electric: 3_300, // VNĐ per kWh at public charger
 };

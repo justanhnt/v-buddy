@@ -164,7 +164,43 @@ export function CheckWalletResult({
           </span>
         </Badge>
       )}
-      {output.last_transaction != null && (
+      {Array.isArray(output.recent_transactions) &&
+      (output.recent_transactions as Record<string, unknown>[]).length > 0 ? (
+        <div className="mt-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            Giao dịch gần đây
+          </p>
+          <ul className="mt-1 space-y-1">
+            {(
+              output.recent_transactions as {
+                type: string;
+                amount_vnd: number;
+                location: string;
+                timestamp: string;
+              }[]
+            ).map((tx, i) => (
+              <li
+                key={i}
+                className="flex justify-between text-xs text-foreground/80"
+              >
+                <span className="truncate mr-2">
+                  {tx.timestamp.slice(5)} · {tx.location}
+                </span>
+                <span
+                  className={
+                    tx.amount_vnd > 0
+                      ? "font-medium text-success shrink-0"
+                      : "font-medium shrink-0"
+                  }
+                >
+                  {tx.amount_vnd > 0 ? "+" : ""}
+                  {VND(tx.amount_vnd)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : output.last_transaction != null ? (
         <p className="mt-1.5 text-xs text-muted-foreground">
           Giao dịch gần nhất:{" "}
           {String(
@@ -172,7 +208,7 @@ export function CheckWalletResult({
               "",
           )}
         </p>
-      )}
+      ) : null}
     </Card>
   );
 }

@@ -5,11 +5,11 @@ import { Sparkles } from "lucide-react";
 import { Chip } from "@/components/ui/chip";
 
 const SUGGESTIONS = [
-  "Đi Đà Lạt hết bao nhiêu?",
+  "Lên kế hoạch đi Đà Lạt cuối tuần",
+  "Đi cafe ở Thảo Điền, tìm chỗ đậu xe",
   "So sánh đường đi Vũng Tàu",
-  "Tìm quán ăn gần đây",
-  "Thời tiết Nha Trang",
-  "Số dư ví VETC",
+  "HCM → Đà Lạt → Nha Trang → HCM",
+  "Lịch sử chuyến đi",
 ];
 
 interface EmptyStateProps {
