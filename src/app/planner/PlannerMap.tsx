@@ -6,8 +6,6 @@ import maplibregl, {
   Map as MLMap,
   Marker,
 } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-
 import { VN_CENTER } from "./mock-data";
 import type { LngLat, Place, RouteResult } from "./types";
 
@@ -25,11 +23,7 @@ const USER_SRC = "planner-user";
 const USER_LAYER = "planner-user-point";
 const USER_LAYER_HALO = "planner-user-halo";
 
-const PRIMARY_STYLE = "https://tiles.openfreemap.org/styles/liberty";
-
-// Raster fallback using OpenStreetMap tiles — works without any API key
-// or custom style hosting. Used if the vector style fails to load.
-const FALLBACK_STYLE: StyleSpecification = {
+const PRIMARY_STYLE: StyleSpecification = {
   version: 8,
   sources: {
     osm: {
@@ -136,43 +130,17 @@ export default function PlannerMap({
     });
     map.addControl(geolocate, "top-right");
 
-    let fellBack = false;
     const onStyleReady = () => {
       addOverlays(map);
       readyRef.current = true;
       setStatus("ready");
     };
-    const onError = (e: { error?: { status?: number } }) => {
-      if (fellBack) return;
-      if (!e?.error) return;
-      console.warn("Map style failed, falling back to OSM raster.", e.error);
-      fellBack = true;
-      try {
-        map.setStyle(FALLBACK_STYLE);
-      } catch {
-        setStatus("error");
-      }
-    };
 
     map.on("load", onStyleReady);
-    // Re-add overlays whenever the style finishes (including after setStyle swap).
     map.on("styledata", () => {
       if (map.isStyleLoaded()) onStyleReady();
     });
-    map.on("error", onError);
-
-    // If style never loads within 6s, force fallback.
-    const timeoutId = window.setTimeout(() => {
-      if (!readyRef.current && !fellBack) {
-        console.warn("Map style load timeout, using OSM raster fallback.");
-        fellBack = true;
-        try {
-          map.setStyle(FALLBACK_STYLE);
-        } catch {
-          setStatus("error");
-        }
-      }
-    }, 6000);
+    map.on("error", () => setStatus("error"));
 
     // Ask for geolocation once style is ready.
     const askLocation = () => {
@@ -204,7 +172,6 @@ export default function PlannerMap({
     mapRef.current = map;
 
     return () => {
-      window.clearTimeout(timeoutId);
       map.remove();
       mapRef.current = null;
       readyRef.current = false;
@@ -287,11 +254,18 @@ export default function PlannerMap({
 
   return (
     <>
-      <div ref={container} className="absolute inset-0 bg-zinc-200 dark:bg-zinc-800" />
+      <div ref={container} style={{ width: "100%", height: "100%" }} className="bg-zinc-200 dark:bg-zinc-800" />
       {status === "loading" && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
           <div className="rounded-full bg-white/80 px-3 py-1.5 text-xs text-zinc-600 shadow ring-1 ring-black/5 backdrop-blur dark:bg-zinc-900/80 dark:text-zinc-300 dark:ring-white/10">
             Đang tải bản đồ…
+          </div>
+        </div>
+      )}
+      {status === "error" && (
+        <div className="pointer-events-none absolute inset-0 grid place-items-center">
+          <div className="rounded-full bg-rose-100 px-3 py-1.5 text-xs text-rose-600 shadow ring-1 ring-rose-200 backdrop-blur">
+            Lỗi tải bản đồ — kiểm tra Console (F12)
           </div>
         </div>
       )}

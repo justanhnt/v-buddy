@@ -143,6 +143,74 @@ export function IconKeyboard(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function IconCafe(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M17 8h1a4 4 0 0 1 0 8h-1" />
+      <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8Z" />
+      <path d="M6 2v3M10 2v3M14 2v3" />
+    </svg>
+  );
+}
+
+export function IconHotel(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M3 20v-8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8" />
+      <path d="M3 20h18" />
+      <path d="M3 12V6a2 2 0 0 1 2-2h2v8" />
+      <circle cx="9" cy="8" r="2" />
+    </svg>
+  );
+}
+
+export function IconRestStop(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+      <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8Z" />
+      <path d="M6 1v3M10 1v3M14 1v3" />
+    </svg>
+  );
+}
+
+export function IconCamera(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z" />
+      <circle cx="12" cy="13" r="3" />
+    </svg>
+  );
+}
+
+export function IconWallet(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M16 12h.01" />
+      <path d="M2 10h20" />
+    </svg>
+  );
+}
+
+export function IconWeather(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 2v2M4.93 4.93l1.41 1.41M2 12h2M4.93 19.07l1.41-1.41M12 20v2M17.66 17.66l1.41 1.41M20 12h2M17.66 6.34l1.41-1.41" />
+      <circle cx="12" cy="12" r="4" />
+    </svg>
+  );
+}
+
+export function IconSummary(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M7 7h10M7 12h10M7 17h6" />
+    </svg>
+  );
+}
+
 export function IconToll(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base} {...props}>
